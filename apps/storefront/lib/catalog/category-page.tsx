@@ -44,7 +44,6 @@ import { headers } from "next/headers";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import { siteStyles } from "@avably/ui";
 
-import { CatalogSearch } from "@/components/storefront/catalog-search";
 import { CategoryList } from "@/components/storefront/category-list";
 import { CategorySort } from "@/components/storefront/category-sort";
 import { JsonLd } from "@/components/storefront/json-ld";
@@ -231,20 +230,16 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
           </header>
 
           {/*
-            TOOLBAR LISTINGU (F9): jeden rząd — szukaj po lewej, „Sortuj:" po
-            prawej; na wąskim kontenerze kolumna (pole nad selectem). SORT tylko
-            gdy jest co sortować — na pustej kategorii przełącznik czterech
-            porządków tej samej pustki jest szumem, nie funkcją. Pole szukania
-            stoi ZAWSZE (mandat: „search widoczny") i celuje w katalog globalnie
-            — uzasadnienie w catalog-search.tsx.
+            TOOLBAR = SAM SORT (F9c): od F7 wyszukiwanie stoi w BELCE na każdej
+            trasie — drugie pole pod tytułem kategorii było dublem (obserwacja
+            wykonawcy F7, decyzja PM). SORT tylko gdy jest co sortować — na
+            pustej kategorii toolbar nie renderuje się wcale.
           */}
-          <div
-            data-listing-toolbar
-            className="mt-4 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center @min-[40rem]/site:justify-between @min-[40rem]/site:gap-4"
-          >
-            <CatalogSearch copy={copy} query="" placeholder={copy.category.searchPlaceholder} />
-            {ctx.total > 0 ? <CategorySort copy={copy} slug={category.slug} active={sort} /> : null}
-          </div>
+          {ctx.total > 0 ? (
+            <div data-listing-toolbar className="mt-4 flex justify-end">
+              <CategorySort copy={copy} slug={category.slug} active={sort} />
+            </div>
+          ) : null}
 
           <div className="mt-6">
             <CategoryList

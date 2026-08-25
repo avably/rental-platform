@@ -254,8 +254,10 @@ describe("strona kategorii (ADR-247)", () => {
     expect(html, "przełącznik sortowania stoi na pustej kategorii").not.toContain(
       "data-category-sort",
     );
-    // Pole szukania ZOSTAJE (mandat: search widoczny) — klient szuka dalej.
-    expect(html, "pole szukania zniknęło z pustej kategorii").toContain("data-catalog-search");
+    // Pole szukania ZOSTAJE w belce (F7/F9c) — klient szuka dalej.
+    expect(html, "pole szukania zniknęło z belki pustej kategorii").toContain(
+      "data-store-header-search",
+    );
     // Pusta kategoria ma stronę pierwszą, ale jej strona druga to 404.
     vi.resetModules();
     stan.total = 0;
@@ -412,18 +414,14 @@ describe("strona kategorii (ADR-247)", () => {
     expect(html).toContain("BreadcrumbList");
   }, BUDZET_RENDERU);
 
-  it("toolbar listingu: pole szukania WIDOCZNE, celuje globalnie w katalog", async () => {
-    // [F9] Mandat właściciela: „search niewidoczny" — pole ma stać na stronie
-    // kategorii. Backend wyszukiwania jest globalny (ADR-263), więc formularz
-    // celuje w /katalog, a placeholder mówi to wprost.
+  it("toolbar listingu = SAM SORT; wyszukiwanie stoi w belce, bez dubla (F9c)", async () => {
+    // [F9c] Od F7 pole wyszukiwania stoi w belce na każdej trasie — drugie
+    // pole w toolbarze kategorii było dublem (obserwacja F7, decyzja PM).
     const html = await renderKategoria(SLUG);
     expect(html).toContain("data-listing-toolbar");
-    expect(html).toMatch(
-      /<form(?=[^>]*data-catalog-search)(?=[^>]*action="\/katalog")[^>]*>/,
-    );
-    expect(html, "placeholder nie mówi o zasięgu globalnym").toContain(
-      "Szukaj w całym katalogu…",
-    );
+    expect(html, "toolbar zgubił przełącznik sortowania").toContain("data-category-sort");
+    expect(html, "wyszukiwanie zniknęło z belki").toContain("data-store-header-search");
+    expect(html, "toolbar znowu dubluje pole wyszukiwania").not.toContain("data-catalog-search");
   }, BUDZET_RENDERU);
 
   it("siatka kategorii niesie klasę karty poziomej, a wspólny arkusz — jej reguły (F9)", async () => {

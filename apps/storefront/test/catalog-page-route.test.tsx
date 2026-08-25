@@ -227,8 +227,11 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     expect((html.match(/<h1[\s>]/g) ?? []).length, "strona ma więcej niż jeden h1").toBe(1);
     expect(html, "brak licznika pozycji przy tytule").toContain("data-catalog-count");
     expect(html, "licznik nie odmienia liczebnika").toContain(`${POZYCJI} pozycji`);
-    expect(html).toContain("data-listing-toolbar");
-    expect(html, "pole szukania zniknęło z katalogu").toContain("data-catalog-search");
+    // [F9c] Toolbar wypadł: pole wyszukiwania stoi w BELCE (z bieżącą frazą),
+    // a katalog nie ma sortu (RPC bez porządku) — pusty toolbar byłby ramką
+    // po niczym.
+    expect(html, "toolbar-widmo wrócił na katalog").not.toContain("data-listing-toolbar");
+    expect(html, "pole szukania zniknęło z belki").toContain("data-store-header-search-inline");
     expect(html, "siatka katalogu bez klasy karty poziomej").toMatch(
       /<ul(?=[^>]*data-catalog-grid)(?=[^>]*site-listing-cards)[^>]*>/,
     );

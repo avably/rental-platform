@@ -183,8 +183,10 @@ describe("wyszukiwarka katalogu na trasie /katalog (ADR-263)", () => {
   // 1. Pole wyszukiwania jest formularzem GET → `?q=`
   // -------------------------------------------------------------------
   it("pole to formularz GET celujący w /katalog z parametrem `q` (linkowalny, bez JS)", async () => {
+    // [F9c] Pole wyszukiwania mieszka w BELCE (F7) — toolbar listingu przestał
+    // je dublować; kontrakt GET → /katalog?q= przenosi się na formę belki.
     const html = await renderKatalog({});
-    expect(html, "brak pola wyszukiwania na katalogu").toContain("data-catalog-search");
+    expect(html, "brak pola wyszukiwania w belce").toContain("data-store-header-search-inline");
     expect(html).toContain('method="get"');
     expect(html).toContain('action="/katalog"');
     expect(html).toContain('name="q"');

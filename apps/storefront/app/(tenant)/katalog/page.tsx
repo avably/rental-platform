@@ -46,7 +46,6 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { CatalogList } from "@/components/storefront/catalog-list";
-import { CatalogSearch } from "@/components/storefront/catalog-search";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { catalogTileContent } from "@/lib/catalog/catalog-tiles";
 import { parseCatalogSearchQuery } from "@/lib/catalog/catalog-search";
@@ -198,6 +197,7 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
       categoryNav={ctx.categoryNav}
       /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
       headerMode="catalog"
+      searchQuery={ctx.query}
       /* Bieżąca strona (S-52/F7): „Cały katalog" w listwie dostaje aria-current. */
       currentPath={`/${CATALOG_PATH_SEGMENT}`}
       siteImageBase={seam.siteImageBase}
@@ -228,13 +228,21 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
             {ctx.query.length > 0 && ctx.total === 0 ? null : (
               <p data-catalog-count className="site-text-muted text-sm">
                 {"· "}
-                {ctx.query.length > 0
-                  ? format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })
-                  : pluralCount(ctx.total, locale, {
+                {ctx.query.length > 0 ? (
+                  <>
+                    {format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })}
+                    {" · "}
+                    <a data-catalog-search-clear href={`/${CATALOG_PATH_SEGMENT}`} className="site-link underline">
+                      {copy.catalog.searchClear}
+                    </a>
+                  </>
+                ) : (
+                  pluralCount(ctx.total, locale, {
                       one: copy.catalog.countOne,
                       few: copy.catalog.countFew,
                       many: copy.catalog.countMany,
-                    })}
+                    })
+                )}
                 {ctx.pageCount > 1
                   ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
                   : ""}
@@ -243,15 +251,14 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
           </div>
 
           {/*
-            TOOLBAR LISTINGU (F9): pole wyszukiwania (ADR-263 — form GET →
-            `?q=`, stan w adresie) w jednym rzędzie; katalog nie ma przełącznika
-            sortowania, bo `get_public_catalog_page` nie przyjmuje porządku —
-            select bez skutku byłby kontrolką-atrapą (stan odnotowany w F9).
+            BEZ TOOLBARA WYSZUKIWANIA (F9c): od F7 pole wyszukiwania stoi
+            w BELCE na każdej trasie i na `/katalog` dostaje bieżącą frazę
+            (`searchQuery` wyżej) — drugie pole pod tytułem było czystym
+            dublem. Katalog nie ma też przełącznika sortowania, bo
+            `get_public_catalog_page` nie przyjmuje porządku — select bez
+            skutku byłby kontrolką-atrapą (stan odnotowany w F9). „Wyczyść"
+            mieszka przy liczniku wyników i w stanie pustym.
           */}
-          {/* `mt-4` — zwarty rytm listingu (F9b), lustro strony kategorii. */}
-          <div data-listing-toolbar className="mt-4 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center">
-            <CatalogSearch copy={copy} query={ctx.query} />
-          </div>
 
           {ctx.query.length > 0 && ctx.total === 0 ? (
             /*
@@ -260,7 +267,10 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
               żeby klient mógł zawęzić inaczej albo wyczyścić.
             */
             <p data-catalog-search-empty className="site-text-muted mt-6">
-              {format(copy.catalog.searchEmpty, { query: ctx.query })}
+              {format(copy.catalog.searchEmpty, { query: ctx.query })}{" "}
+              <a data-catalog-search-clear href={`/${CATALOG_PATH_SEGMENT}`} className="site-link underline">
+                {copy.catalog.searchClear}
+              </a>
             </p>
           ) : (
             <>
