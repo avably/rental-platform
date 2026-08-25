@@ -98,6 +98,7 @@ export {
   type PaymentProvider,
   type PaymentStatus,
   type IsoDate,
+  type RentalRangeOptions,
   type AvailabilityParams,
   type AvailabilityResult,
   type BookedRange,

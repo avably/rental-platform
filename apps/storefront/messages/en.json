@@ -350,8 +350,7 @@
       "cartCountFew": "Cart, {total} items",
       "cartCountMany": "Cart, {total} items",
       "categories": "Categories",
-      "allCatalog": "Full catalog",
-      "more": "More"
+      "allCategories": "All categories"
     },
     "notFound": {
       "title": "We could not find that page",
@@ -361,7 +360,7 @@
       "productsEmpty": "The catalog is being prepared.",
       "categoriesEmpty": "Categories are being prepared.",
       "productsCatalog": "See the full catalog →",
-      "productsCta": "Check availability",
+      "productsCta": "See details",
       "contactEmail": "Email:",
       "contactPhone": "Phone:",
       "contactAddress": "Address:",
@@ -463,7 +462,6 @@
     "term": {
       "heading": "Rental dates",
       "choose": "Pick your rental dates",
-      "change": "Change dates",
       "close": "Close calendar",
       "apply": "Apply",
       "clear": "Clear",
@@ -535,7 +533,7 @@
       "checkoutBlockedConflict": "Checkout is blocked: the selected dates do not fit your whole cart.",
       "summaryHeading": "Summary",
       "total": "Total",
-      "emptySecondaryCta": "Back to the home page",
+      "emptySecondaryCta": "Back to home",
       "increase": "Increase quantity",
       "decrease": "Decrease quantity"
     },
@@ -661,7 +659,7 @@
       "summaryTotal": "Total",
       "emailSent": "We've sent a confirmation to your email address.",
       "emailIssue": "Your order was received, but the email confirmation may arrive with a delay.",
-      "backToStore": "Back to the store"
+      "backToStore": "Back to home"
     },
     "seo": {
       "catalogDescription": "{store} rentals — browse the offer, check availability and book online.",

@@ -350,8 +350,7 @@
       "cartCountFew": "Koszyk, {total} pozycje",
       "cartCountMany": "Koszyk, {total} pozycji",
       "categories": "Kategorie",
-      "allCatalog": "Cały katalog",
-      "more": "Więcej"
+      "allCategories": "Wszystkie kategorie"
     },
     "notFound": {
       "title": "Nie znaleźliśmy takiej strony",
@@ -361,7 +360,7 @@
       "productsEmpty": "Katalog jest w przygotowaniu.",
       "categoriesEmpty": "Kategorie są w przygotowaniu.",
       "productsCatalog": "Zobacz cały katalog →",
-      "productsCta": "Sprawdź dostępność",
+      "productsCta": "Zobacz szczegóły",
       "contactEmail": "E-mail:",
       "contactPhone": "Telefon:",
       "contactAddress": "Adres:",
@@ -437,7 +436,7 @@
       "searchTitle": "Wyszukiwanie: {query}"
     },
     "category": {
-      "breadcrumbHome": "Sklep",
+      "breadcrumbHome": "Strona główna",
       "breadcrumbLabel": "Ścieżka nawigacji",
       "empty": "Ta kategoria jest jeszcze pusta",
       "emptyCta": "Przeglądaj cały katalog",
@@ -463,7 +462,6 @@
     "term": {
       "heading": "Termin najmu",
       "choose": "Wybierz termin najmu",
-      "change": "Zmień termin",
       "close": "Zamknij kalendarz",
       "apply": "Zastosuj",
       "clear": "Wyczyść",
@@ -661,7 +659,7 @@
       "summaryTotal": "Razem",
       "emailSent": "Potwierdzenie wysłaliśmy na Twój adres e-mail.",
       "emailIssue": "Zamówienie zostało przyjęte, ale potwierdzenie e-mail może dotrzeć z opóźnieniem.",
-      "backToStore": "Wróć do sklepu"
+      "backToStore": "Wróć na stronę główną"
     },
     "seo": {
       "catalogDescription": "Wypożyczalnia {store} — sprawdź ofertę, dostępność i zarezerwuj online.",

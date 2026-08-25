@@ -98,8 +98,6 @@ export default async function TenantCheckoutPage() {
         więc menu nie otwiera tu żadnej nowej drogi ucieczki.
       */
       categoryNav={categoryNavItems(catalog)}
-      /* KASA = TRYB KASOWY (F7 pkt 4): bez listwy, search jako ikona. */
-      headerMode="checkout"
       currentPath="/checkout"
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>

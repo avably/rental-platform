@@ -46,6 +46,10 @@ import { siteStyles } from "@avably/ui";
 
 import { CategoryList } from "@/components/storefront/category-list";
 import { CategorySort } from "@/components/storefront/category-sort";
+import {
+  ListingCategoryColumn,
+  ListingCategoryRow,
+} from "@/components/storefront/listing-categories";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { categoryBasePath, categoryPagePath } from "@/lib/catalog/category-path";
@@ -153,9 +157,8 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
         `loadCategoryNav`.
       */
       categoryNav={ctx.categoryNav}
-      /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
-      headerMode="catalog"
-      /* Bieżąca półka (S-52/F7): jej odnośnik w listwie dostaje aria-current. */
+      /* Bieżąca półka (S-52/F7b): jej pozycja w rozwijanej liście belki
+         i w kolumnie kategorii listingu dostaje aria-current. */
       currentPath={categoryBasePath(category.slug)}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
@@ -191,68 +194,99 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
           </nav>
 
           {/*
-            NAGŁÓWEK KOMPAKTOWY (F9 + F9b). Licznik pozycji stoi w JEDNYM
-            wierszu z h1 (wzorzec listingu elektromarketów: „Nazwa · N pozycji"),
-            zamiast osobnego akapitu — nagłówek kończy się przed ofertą po
-            ~3 wierszach, nie po ekranie.
-
-            BEZ MINIATURY BANERA (F9b, uwaga właściciela 2026-08-25): miniatura
-            88 px po prawej stała ~660 px od tytułu i czytała się jak sierota,
-            nie jak część nagłówka; benchmark nie kładzie w nagłówku kategorii
-            ŻADNEJ grafiki. Baner z kreatora żyje na KAFLACH kategorii (sekcja
-            categories + strona główna) — tam pracuje, tu przeszkadzał.
+            SIATKA LISTINGU (F7b): kolumna kategorii + treść. Poniżej 64 rem
+            kontenera kolumna znika, a jej rolę przejmuje przewijany rząd
+            pastylek nad toolbarem — patrz `listing-categories.tsx`.
+            `minmax(0,1fr)` na kolumnie treści: bez tego siatka wyników
+            z długim tytułem rozpycha kolumnę ponad pas strony.
           */}
-          <header data-category-header className="mt-2">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
-                <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
-                  {category.name}
-                </h1>
-                <p data-category-count className="site-text-muted text-sm">
-                  {"· "}
-                  {pluralCount(ctx.total, locale, {
-                    one: copy.catalog.countOne,
-                    few: copy.catalog.countFew,
-                    many: copy.catalog.countMany,
-                  })}
-                  {ctx.pageCount > 1
-                    ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
-                    : ""}
-                </p>
-              </div>
-              {category.description ? (
-                <p data-category-description className="site-text-muted mt-2 max-w-prose text-sm">
-                  {category.description}
-                </p>
-              ) : null}
-            </div>
-          </header>
-
-          {/*
-            TOOLBAR = SAM SORT (F9c): od F7 wyszukiwanie stoi w BELCE na każdej
-            trasie — drugie pole pod tytułem kategorii było dublem (obserwacja
-            wykonawcy F7, decyzja PM). SORT tylko gdy jest co sortować — na
-            pustej kategorii toolbar nie renderuje się wcale.
-          */}
-          {ctx.total > 0 ? (
-            <div data-listing-toolbar className="mt-4 flex justify-end">
-              <CategorySort copy={copy} slug={category.slug} active={sort} />
-            </div>
-          ) : null}
-
-          <div className="mt-6">
-            <CategoryList
-              products={seam.products}
-              labels={seam.labels}
-              content={catalogTileContent(site?.sections)}
-              styles={styles}
-              copy={copy}
-              slug={category.slug}
-              page={ctx.page}
-              pageCount={ctx.pageCount}
-              sort={sort}
+          <div className="mt-2 grid gap-x-8 gap-y-4 @min-[64rem]/site:grid-cols-[15rem_minmax(0,1fr)]">
+            <ListingCategoryColumn
+              items={ctx.categoryNav}
+              heading={copy.nav.categories}
+              allCategoriesLabel={copy.nav.allCategories}
+              currentPath={categoryBasePath(category.slug)}
             />
+            <div className="min-w-0">
+              {/*
+                NAGŁÓWEK KOMPAKTOWY (F9 + F9b). Licznik pozycji stoi w JEDNYM
+                wierszu z h1 (wzorzec listingu elektromarketów: „Nazwa · N
+                pozycji"), zamiast osobnego akapitu — nagłówek kończy się przed
+                ofertą po ~3 wierszach, nie po ekranie.
+
+                BEZ MINIATURY BANERA (F9b, uwaga właściciela 2026-08-25):
+                miniatura 88 px po prawej stała ~660 px od tytułu i czytała się
+                jak sierota, nie jak część nagłówka; benchmark nie kładzie
+                w nagłówku kategorii ŻADNEJ grafiki. Baner z kreatora żyje na
+                KAFLACH kategorii — tam pracuje, tu przeszkadzał.
+              */}
+              <header data-category-header>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
+                    <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
+                      {category.name}
+                    </h1>
+                    <p data-category-count className="site-text-muted text-sm">
+                      {"· "}
+                      {pluralCount(ctx.total, locale, {
+                        one: copy.catalog.countOne,
+                        few: copy.catalog.countFew,
+                        many: copy.catalog.countMany,
+                      })}
+                      {ctx.pageCount > 1
+                        ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
+                        : ""}
+                    </p>
+                  </div>
+                  {category.description ? (
+                    <p data-category-description className="site-text-muted mt-2 max-w-prose text-sm">
+                      {category.description}
+                    </p>
+                  ) : null}
+                </div>
+              </header>
+
+              {/*
+                RZĄD KATEGORII NA WĄSKIM KONTENERZE (F7b) — nad toolbarem, bo
+                wybór półki poprzedza wybór porządku. Powyżej 64 rem znika:
+                tam tę samą listę niesie kolumna po lewej.
+              */}
+              <div className="mt-4">
+                <ListingCategoryRow
+                  items={ctx.categoryNav}
+                  heading={copy.nav.categories}
+                  allCategoriesLabel={copy.nav.allCategories}
+                  currentPath={categoryBasePath(category.slug)}
+                />
+              </div>
+
+              {/*
+                TOOLBAR = SAM SORT (F9c): od F7 wyszukiwanie stoi w BELCE na
+                każdej trasie — drugie pole pod tytułem kategorii było dublem
+                (obserwacja wykonawcy F7, decyzja PM). SORT tylko gdy jest co
+                sortować — na pustej kategorii toolbar nie renderuje się wcale.
+              */}
+              {ctx.total > 0 ? (
+                <div data-listing-toolbar className="mt-4 flex justify-end">
+                  <CategorySort copy={copy} slug={category.slug} active={sort} />
+                </div>
+              ) : null}
+
+              <div className="mt-6">
+                <CategoryList
+                  products={seam.products}
+                  labels={seam.labels}
+                  content={catalogTileContent(site?.sections)}
+                  styles={styles}
+                  copy={copy}
+                  slug={category.slug}
+                  page={ctx.page}
+                  pageCount={ctx.pageCount}
+                  sort={sort}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </main>

@@ -1,24 +1,19 @@
 "use client";
 
 /**
- * WYSZUKIWANIE W NAGŁÓWKU SKLEPU (F7) — „search na wierzchu" z mandatu
- * właściciela: pole widoczne na KAŻDEJ trasie, nie tylko w toolbarze listingu.
+ * WYSZUKIWANIE W NAGŁÓWKU SKLEPU (F7; od F7b WYŁĄCZNIE IKONA).
  *
- * ==================== DWIE FORMY, JEDEN FORMULARZ GET ====================
+ * ==================== JEDNA FORMA, JEDEN FORMULARZ GET ====================
  *
- * Obie formy są zwykłym `<form method="get">` celującym w `/katalog` — jak
- * pole toolbara (ADR-263/F9): wysłanie robi NAWIGACJĘ pod `/katalog?q=…`,
- * więc wyszukiwanie działa bez JavaScriptu, a adres wyników da się wkleić.
+ * Wyzwalacz-ikona na KAŻDEJ trasie i KAŻDEJ szerokości; panel z pełnoszerokim
+ * polem rozwija się POD belką. Do F7b od 48 rem kontenera stało w belce pełne
+ * pole („search dominuje środek", benchmark F7) — właściciel zdjął je po
+ * obejrzeniu produkcji: „search jako tylko ikonka". Wariant „full" wypadł
+ * razem z progiem kontenerowym, który go włączał.
  *
- *   • PEŁNE POLE (kontener ≥ 48 rem, trasy poza kasą): input + przycisk
- *     w środku belki — wyszukiwanie jest głównym narzędziem nawigacji.
- *   • IKONA (kontener < 48 rem ZAWSZE; na kasie i w koszyku KAŻDA szerokość —
- *     redukcja dystrakcji, spec F7 pkt 4): natywny `<details>`, którego panel
- *     rozpina pełnoszerokie pole POD belką.
- *
- * Rozjazd form robi zapytanie KONTENEROWE `@min-[48rem]/site:` (ADR-085),
- * nie viewportowe — obie formy stoją w SSR, widoczna jest zawsze dokładnie
- * jedna. Ta sama technika, co dwa wystąpienia pigułki terminu (aneks ADR-194).
+ * Formularz to zwykły `<form method="get">` celujący w `/katalog` (ADR-263/F9):
+ * wysłanie robi NAWIGACJĘ pod `/katalog?q=…`, więc wyszukiwanie działa bez
+ * JavaScriptu, a adres wyników da się wkleić.
  *
  * ==================== `<details>` + MINIMALNY JS ====================
  *
@@ -35,6 +30,7 @@
  * Rozdział powierzchni robi obrys karty, nie cień (twardy zakaz cieni).
  */
 import { CATALOG_PATH_SEGMENT } from "@avably/core";
+import { StoreGlyph } from "@avably/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CATALOG_SEARCH_PARAM } from "@/lib/catalog/catalog-search";
@@ -46,36 +42,11 @@ export interface StoreHeaderSearchLabels {
   submit: string;
 }
 
-/** Ikona lupy — czysto dekoracyjna przy etykietowanym wyzwalaczu/przycisku. */
-function SearchGlyph({ className }: { className: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.6-3.6" />
-    </svg>
-  );
-}
-
 export function StoreHeaderSearch({
   labels,
-  variant,
   defaultQuery,
 }: {
   labels: StoreHeaderSearchLabels;
-  /**
-   * `full` — pełne pole od 48 rem kontenera, ikona poniżej (trasy handlowe
-   * i treściowe); `icon` — ikona na każdej szerokości (kasa i koszyk, F7 pkt 4).
-   */
-  variant: "full" | "icon";
   /**
    * BIEŻĄCA FRAZA WYNIKÓW (F9c) — na `/katalog?q=…` belka jest JEDYNYM polem
    * wyszukiwania (toolbar listingu przestał go dublować), więc to ona pokazuje
@@ -124,50 +95,14 @@ export function StoreHeaderSearch({
 
   return (
     /*
-      Korzeń wypełnia slot belki: przy pełnym polu formularz środkuje się
-      w wolnym pasie (`mx-auto` na formie), przy ikonie wyzwalacz dosuwa się
-      do prawej — obok pigułki terminu i koszyka.
+      Korzeń wypełnia slot belki: wyzwalacz jest kwadratem 44 px w rzędzie
+      pozostałych ikon (kategorie ← szukaj → termin → koszyk).
     */
-    <div data-store-header-search className="flex min-w-0 flex-1 items-center justify-end">
-      {variant === "full" ? (
-        /*
-          PEŁNE POLE (desktop): 44 px wysokości (h-11 — cel dotykowy S-15),
-          elastyczna szerokość z sufitem — pole ma dominować środek belki,
-          ale nie rozpychać jej ponad kolumnę treści.
-        */
-        <form
-          data-store-header-search-inline
-          role="search"
-          method="get"
-          action={action}
-          className="mx-auto hidden h-11 w-full max-w-xl items-center gap-2 @min-[48rem]/site:flex"
-        >
-          {/* Etykieta dla czytnika — placeholder nią nie jest (WCAG 3.3.2). */}
-          <label htmlFor="store-header-search-q" className="sr-only">
-            {labels.label}
-          </label>
-          <input
-            id="store-header-search-q"
-            type="search"
-            name={CATALOG_SEARCH_PARAM}
-            defaultValue={defaultQuery}
-            placeholder={labels.placeholder}
-            autoComplete="off"
-            className="site-field h-11 w-full min-w-0 px-3 text-sm"
-          />
-          <button
-            type="submit"
-            className="site-cta flex h-11 shrink-0 cursor-pointer items-center gap-2 text-sm font-semibold"
-          >
-            <SearchGlyph className="h-4 w-4 shrink-0" />
-            <span>{labels.submit}</span>
-          </button>
-        </form>
-      ) : null}
+    <div data-store-header-search className="flex items-center">
       <details
         ref={detailsRef}
         data-store-header-search-toggle
-        className={variant === "full" ? "group @min-[48rem]/site:hidden" : "group"}
+        className="group"
         onToggle={(event) => {
           const isOpen = event.currentTarget.open;
           setOpen(isOpen);
@@ -178,13 +113,13 @@ export function StoreHeaderSearch({
         {/* Wyzwalacz 44×44 px (S-15) — sama lupa, z etykietą dostępną. */}
         <summary
           aria-label={labels.label}
-          className="site-menu-link flex h-11 w-11 cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden"
+          className="site-menu-link flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded [&::-webkit-details-marker]:hidden"
         >
-          <SearchGlyph className="h-5 w-5" />
+          <StoreGlyph name="search" className="h-5 w-5" />
         </summary>
         {/*
           PANEL POD BELKĄ: pełna szerokość wiersza belki (kotwica `relative`
-          w `StoreShellHeader` — technika S-01), warstwa nad listwą kategorii.
+          w `StoreShellHeader` — technika S-01), warstwa nad treścią strony.
 
           `hidden group-open:block` DUBLUJE natywne chowanie details ŚWIADOMIE:
           Chrome trzyma treść zamkniętego details w `content-visibility` i dalej

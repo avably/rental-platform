@@ -112,16 +112,36 @@ describe("stan czytelny BEZ koloru (WCAG 1.4.1)", () => {
     expect(within(el).getByText(LABELS.unavailable)).toBeTruthy();
   });
 
-  it("każdy stan rysuje SWÓJ glif (trzy różne kształty, nie jeden kolor)", () => {
-    const ksztalt = (units: number) => {
+  /*
+    [F7b] Asercja przepisana z „trzy różne glify" na „trzy różne ETYKIETY".
+    Właściciel zdjął wykrzyknik ze stanu `low` („z chipsa dostępności usuń
+    wykrzyknik") — chip niedoboru nie ma dziś ŻADNEGO znaku. Warunek 1.4.1
+    dotyczy tego, żeby informacji nie niósł sam KOLOR; nośnikiem jest tekst
+    i to on musi się różnić między stanami. Stany skrajne dalej dostają znak
+    (ptaszek / krzyżyk) i tego pilnuje druga noga asercji.
+  */
+  it("każdy stan mówi SWOIM tekstem, nie samym kolorem", () => {
+    const tekst = (units: number) => {
       cleanup();
       narysuj(dostepnosc({ [PID]: units }));
-      return badge()!.querySelector("svg")!.innerHTML;
+      return badge()!.textContent;
     };
-    const available = ksztalt(9);
-    const low = ksztalt(1);
-    const unavailable = ksztalt(0);
+    const available = tekst(9);
+    const low = tekst(1);
+    const unavailable = tekst(0);
     expect(new Set([available, low, unavailable]).size).toBe(3);
+  });
+
+  it("niedobór NIE MA wykrzyknika (ani żadnego znaku); stany skrajne mają swój", () => {
+    const znak = (units: number) => {
+      cleanup();
+      narysuj(dostepnosc({ [PID]: units }));
+      return badge()!.querySelector("svg");
+    };
+    expect(znak(1), "wykrzyknik wrócił na chip niedoboru — właściciel go zdjął").toBeNull();
+    const available = znak(9)!.innerHTML;
+    const unavailable = znak(0)!.innerHTML;
+    expect(available).not.toBe(unavailable);
   });
 });
 

@@ -61,7 +61,13 @@
  * w koszyku, byłby dokładnie tym drugim źródłem prawdy, którego R1 zabrania.
  */
 import { formatRentalRange } from "@avably/core";
-import { cn, SITE_CONTAINER, SiteProductAvailabilityProvider, type SiteCalendarLabels } from "@avably/ui";
+import {
+  cn,
+  SITE_CONTAINER,
+  SiteProductAvailabilityProvider,
+  StoreGlyph,
+  type SiteCalendarLabels,
+} from "@avably/ui";
 import {
   createContext,
   useCallback,
@@ -387,23 +393,32 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
 }
 
 /**
- * PIGUŁKA TERMINU — wyzwalacz okna wyboru (forma z ADR-194, miejsce z aneksu).
+ * PIGUŁKA TERMINU — JEDYNY TEKST BELKI IKONOWEJ (F7b; forma z ADR-194).
  *
- * DWA STANY, JEDEN STAN KOSZYKA: bez terminu pigułka niesie zachętę, z
- * terminem — wybrany zakres i akcję zmiany. Nie jest to nowy stan, tylko nowy
+ * DWA STANY, JEDEN STAN KOSZYKA: bez terminu pigułka niesie zachętę („Wybierz
+ * termin"), z terminem — wybrany zakres. Nie jest to nowy stan, tylko nowy
  * WIDOK `CartState.startDate/endDate`; SSR maluje stan „bez terminu", bo
  * koszyk mieszka w `localStorage` i serwer go nie zna — hydratacja podmienia
  * treść pigułki, nie jej obecność. Klik (w dowolnym stanie) otwiera to samo
  * okno wyboru, do którego prowadzi pole na stronie sprzętu — BEZ dostępności,
  * bo w powłoce nie ma produktu bieżącego (R2 z ADR-179).
  *
- * DWA WYSTĄPIENIA, JEDEN KOMPONENT (aneks ADR-194): pigułka stoi w belce menu
- * (desktop, slot `center` nagłówka) i w wierszu pod belką (mobile). Element
- * nie może stać w dwóch miejscach dokumentu naraz, więc wystąpienia są dwa —
- * ale treść, stan `aria-expanded` i cel kliknięcia mają po JEDNYM źródle
- * (koszyk i `StoreTermModalContext`), przez co nie mają jak się rozjechać.
- * Widoczne jest zawsze dokładnie jedno wystąpienie — rozjazd robi zapytanie
- * kontenerowe (`@min-[48rem]/site:`, od F7), nigdy skrypt.
+ * ==================== JEDNO WYSTĄPIENIE (F7b) ====================
+ *
+ * Aneks ADR-194 dał pigułce dwa wystąpienia: w belce od 48 rem kontenera
+ * i w wierszu POD belką poniżej progu. F7b znosi ten podział — belka ikonowa
+ * mieści pigułkę na każdej szerokości, bo obok niej stoją trzy kwadraty 44 px,
+ * a nie pełne pole wyszukiwania. Wystąpienie jest jedno, progów nie ma żadnych,
+ * więc nie ma też pasa szerokości, w którym pigułka mogłaby się zdublować.
+ *
+ * ==================== „NIE ZA SZEROKA" (dyspozycja właściciela) ====================
+ *
+ * Trzy rzeczy trzymają szerokość: WARIANT KRÓTKI frazy (bez roku bieżącego —
+ * `formatRentalRange({ short: true })`), `max-w` z `truncate` na frazie
+ * (zamiast rozpychania belki) i BRAK dopisku „· Zmień" — do F7b pigułka
+ * z terminem niosła go obok zakresu, czyli najdłuższy napis belki był
+ * instrukcją, a nie treścią. Afordancję zmiany niesie sama pigułka: jest
+ * przyciskiem otwierającym okno wyboru (`aria-haspopup="dialog"`).
  */
 export function StoreTermPill({
   copy,
@@ -412,7 +427,7 @@ export function StoreTermPill({
   copy: StorefrontCopy;
   /**
    * Język NAJEMCY — do frazy terminu (`formatRentalRange`, F8/S-10: „26–28
-   * sie 2026 · 3 dni" zamiast ISO). Opcjonalny z domyślnym rynkiem startowym,
+   * sie · 3 dni" zamiast ISO). Opcjonalny z domyślnym rynkiem startowym,
    * żeby nie łamać istniejących wywołań; powłoka podaje locale jawnie.
    */
   locale?: StorefrontLocale;
@@ -423,39 +438,47 @@ export function StoreTermPill({
   const complete =
     term.startDate !== null && term.endDate !== null && term.endDate >= term.startDate;
   // Fraza jest ATOMOWA (NBSP w środku tokenów) — data nie łamie się w środku
-  // na wąskiej pigułce (audyt S-10: „2026-08-/28").
+  // na wąskiej pigułce (audyt S-10: „2026-08-/28"). Wariant KRÓTKI (F7b) zdejmuje
+  // rok bieżący; rok z przyszłości zostaje, bo bez niego byłaby to inna data.
   const summary = complete
-    ? formatRentalRange(term.startDate!, term.endDate!, locale)
+    ? formatRentalRange(term.startDate!, term.endDate!, locale, { short: true })
     : copy.term.choose;
 
   return (
     <>
       <button
         type="button"
-        className="site-cta-secondary inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
+        className="site-cta-secondary inline-flex h-11 max-w-[11rem] cursor-pointer items-center gap-2 rounded-full px-3 text-sm font-semibold @min-[30rem]/site:max-w-[16rem] @min-[30rem]/site:px-4"
         aria-haspopup="dialog"
         aria-expanded={open}
         data-store-term-toggle
         onClick={() => setOpen(true)}
       >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-4 w-4 shrink-0"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-        <span data-store-term-summary>{summary}</span>
-        {complete ? <span className="font-normal opacity-80">· {copy.term.change}</span> : null}
+        <StoreGlyph name="calendar" className="h-4 w-4 shrink-0" />
+        {/*
+          `truncate` na FRAZIE, nie na przycisku: ścina się tekst, a kalendarz
+          i cel dotykowy (44 px wysokości) zostają nietknięte. Fraza ścięta
+          wielokropkiem jest gorsza od pełnej — ale nieskończenie lepsza od
+          belki, która rozjeżdża się poza ekran (S-10 broni ŁAMANIA w środku
+          daty, nie szerokości pigułki).
+        */}
+        <span data-store-term-summary className="truncate">
+          {summary}
+        </span>
       </button>
+      {/*
+        „SPRAWDZAM DOSTĘPNOŚĆ" — KOMUNIKAT, NIE TREŚĆ BELKI (F7b).
+
+        Odczyt dostępności rusza SAM, na każdą zmianę terminu (patrz
+        `StoreTermProvider`), więc w belce ikonowej migałby napis o pracy,
+        o którą nikt nie prosił — i rozpychałby przy tym jedyny tekstowy
+        element nagłówka. Zostaje jako `sr-only`: czytnik ekranu dostaje
+        `role="status"` (grzeczna zapowiedź), oko — nic. Widoczny stan
+        „sprawdzam" ma tam, gdzie jest o czym mówić: w karcie rezerwacji
+        na stronie sprzętu.
+      */}
       {term.checking ? (
-        <span className="site-text-muted text-xs" role="status">
+        <span className="sr-only" role="status">
           {copy.term.checking}
         </span>
       ) : null}
@@ -464,25 +487,24 @@ export function StoreTermPill({
 }
 
 /**
- * POWIERZCHNIA TERMINU W POWŁOCE — wiersz mobilny, okno i panel konfliktu.
- * Stoi POD nagłówkiem, czyli w tym samym korzeniu motywu, co reszta sklepu
+ * POWIERZCHNIA TERMINU POD NAGŁÓWKIEM — OKNO WYBORU I PANEL KONFLIKTU.
+ * Stoi POD belką, czyli w tym samym korzeniu motywu, co reszta sklepu
  * (K6, ADR-092): pasek poza korzeniem brałby paletę panelu.
  *
- * Do aneksu ADR-194 wiersz pod belką był JEDYNYM miejscem pigułki; właściciel
- * przeniósł ją na desktopie DO belki (slot `center` nagłówka podaje ją
- * `StoreChrome`), a wiersz pod belką został formą wąską, bo tam belka jest za
- * ciasna na cztery elementy. Stąd `@min-[48rem]/site:hidden` na wierszu (F7
- * przeniosło próg z viewportowego `md:` na KONTENEROWY — ADR-085: podgląd
- * mierzy własną szerokość, nie okna) — ten sam próg, od którego slot belki
- * jest widoczny; rozjazd innej pary klas zostawiałby pas szerokości z dwiema
- * pigułkami albo z żadną.
+ * ==================== WIERSZ MOBILNY WYPADŁ (F7b) ====================
  *
- * Goły znacznik `data-store-term` zostaje na OWIJCE, a nie na wierszu: wisi
- * na nim puls produkcyjny, a owijka — w odróżnieniu od wiersza — jest w SSR
- * każdej strony handlowej NIEZALEŻNIE od szerokości okna i od tego, którą
- * formę pigułki pokazuje media query. Okno i panel konfliktu też mieszkają
- * tu, POZA `md:hidden`: konflikt musi być widoczny na każdej szerokości,
- * a okno jest `position: fixed`, więc miejsce w przepływie jest mu obojętne.
+ * Do F7b mieszkał tu drugi egzemplarz pigułki: wiersz `@min-[48rem]/site:hidden`
+ * pokazywany wtedy, gdy belka była za ciasna na pełne pole wyszukiwania plus
+ * pigułkę. Belka ikonowa tego problemu nie ma (trzy kwadraty 44 px zamiast
+ * pola), więc pigułka jest JEDNA — w belce, na każdej szerokości. Zniknął
+ * razem z wierszem cały próg kontenerowy, który obie formy rozdzielał, a
+ * z nim klasa wad „w pasie 47–48 rem pigułki są dwie albo nie ma żadnej".
+ *
+ * Goły znacznik `data-store-term` zostaje na OWIJCE: wisi na nim puls
+ * produkcyjny, a owijka jest w SSR każdej strony handlowej niezależnie od
+ * szerokości okna. Okno wyboru i panel konfliktu mieszkają tutaj, bo konflikt
+ * musi być widoczny na każdej szerokości, a okno jest `position: fixed`, więc
+ * miejsce w przepływie jest mu obojętne.
  */
 export function StoreTermBar({
   copy,
@@ -501,13 +523,6 @@ export function StoreTermBar({
 
   return (
     <div data-store-term>
-      <div className="site-rule-top @min-[48rem]/site:hidden">
-        {/* Wspólna siatka strony najemcy (S-58) — patrz `SITE_CONTAINER`. */}
-        <div className={cn(SITE_CONTAINER, "flex flex-wrap items-center justify-center gap-3 py-2.5")}>
-          <StoreTermPill copy={copy} locale={locale} />
-        </div>
-      </div>
-
       {/*
         OKNO WYBORU — bez `productId`, więc bez malowania dostępności (R2).
         Zapis terminu wyłącznie przyciskiem „Zastosuj" w oknie (ADR-194).

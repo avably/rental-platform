@@ -42,7 +42,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
 }));
 
-const { StoreTermBar, StoreTermProvider } = await import("@/components/storefront/store-term");
+const { StoreTermBar, StoreTermPill, StoreTermProvider } = await import(
+  "@/components/storefront/store-term"
+);
 const { CartView } = await import("@/components/storefront/cart-view");
 const { CheckoutForm } = await import("@/components/storefront/checkout-form");
 const { readCart, writeCart } = await import("@/lib/cart/storage");
@@ -96,9 +98,18 @@ function allFree(units = 5): PublicCatalogAvailability {
   };
 }
 
+/**
+ * SZEW POWŁOKI W KSZTAŁCIE PRODUKCJI (F7b). `StoreChrome` stawia pigułkę
+ * w BELCE (slot `center` nagłówka), a `StoreTermBar` niesie już tylko okno
+ * wyboru i panel konfliktu — do F7b pigułka była też w nim, w wierszu
+ * mobilnym. Helper składa więc oba kawałki dokładnie tak, jak powłoka;
+ * gdyby wiersz z pigułką wrócił do `StoreTermBar`, wystąpienia byłyby dwa
+ * i złapałby to test „pigułka ma DOKŁADNIE JEDNO wystąpienie".
+ */
 function shell(children?: React.ReactNode) {
   return (
     <StoreTermProvider>
+      <StoreTermPill copy={copy} locale="pl" />
       <StoreTermBar copy={copy} products={PRODUCTS} locale="pl" />
       {children}
     </StoreTermProvider>
@@ -338,26 +349,33 @@ describe("wybór terminu w powłoce", () => {
   });
 
   // BRAMKA ADR-194: PIGUŁKA ODZWIERCIEDLA STAN KOSZYKA. Dwa stany tego samego
-  // widoku: bez terminu zachęta, z terminem zakres + akcja zmiany. Nie ma tu
+  // widoku: bez terminu zachęta, z terminem — wybrany zakres. Nie ma tu
   // trzeciego stanu ani drugiego źródła — treść pigułki jest funkcją
   // `CartState.startDate/endDate` (SSR maluje stan „bez terminu", bo koszyk
   // mieszka w localStorage; hydratacja podmienia treść, nie obecność).
   //
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: pigułka z własnym stanem (nie czyta koszyka) albo
-  // jednostanowa — klient z wybranym terminem nie widziałby GDZIE go zmienić,
-  // a klient bez terminu nie dostawałby zachęty.
-  it("pigułka odzwierciedla stan koszyka: zachęta bez terminu, zakres i zmiana z terminem", async () => {
+  // jednostanowa — klient bez terminu nie dostawałby zachęty, a klient
+  // z terminem nie widziałby, JAKI termin ma ustawiony.
+  //
+  // [F7b] Zdjęta asercja dopisku „· Zmień": w belce ikonowej pigułka jest
+  // JEDYNYM tekstem i ma być „nie za szeroka" (dyspozycja właściciela), więc
+  // najdłuższy napis belki nie może być instrukcją. Afordancję zmiany niesie
+  // sama pigułka — przycisk z `aria-haspopup="dialog"` (asercja niżej).
+  // Fraza jest w wariancie KRÓTKIM (bez roku bieżącego, F7b).
+  it("pigułka odzwierciedla stan koszyka: zachęta bez terminu, zakres z terminem", async () => {
     render(shell());
     const pill = document.querySelector<HTMLButtonElement>("[data-store-term-toggle]")!;
     const start = dayFromToday(5);
     const end = dayFromToday(8);
 
-    // STAN 1 — bez terminu: zachęta, bez akcji zmiany.
+    // STAN 1 — bez terminu: zachęta.
     expect(pill.textContent).toContain(copy.term.choose);
-    expect(pill.textContent).not.toContain(copy.term.change);
+    // Pigułka JEST wyzwalaczem okna — to ona niesie afordancję zmiany terminu.
+    expect(pill.getAttribute("aria-haspopup")).toBe("dialog");
 
     // STAN 2 — termin w koszyku (zapisany skądkolwiek, np. z drugiej karty):
-    // pigułka pokazuje zakres i akcję zmiany, zachęta znika.
+    // pigułka pokazuje zakres, zachęta znika.
     // [F8] Asercja zmieniona z ISO (`toContain(start)`) na frazę
     // `formatRentalRange` — intencja bez zmian (pigułka odzwierciedla zakres
     // z koszyka), zmienił się WYŁĄCZNIE format prezentacji (S-10: daty po
@@ -367,10 +385,38 @@ describe("wybór terminu w powłoce", () => {
       expect(
         document.querySelector("[data-store-term-summary]")!.textContent,
         "pigułka nie pokazała zakresu z koszyka",
-      ).toContain(formatRentalRange(start, end, "pl"));
+      ).toContain(formatRentalRange(start, end, "pl", { short: true }));
     });
-    expect(pill.textContent).toContain(copy.term.change);
     expect(pill.textContent).not.toContain(copy.term.choose);
+  });
+
+  // [F7b] JEDNA PIGUŁKA, NIE DWIE. Aneks ADR-194 trzymał drugie wystąpienie
+  // w wierszu pod belką (`@min-[48rem]/site:hidden`), a próg musiał się zgadzać
+  // co do jednostki z progiem slotu w belce. Belka ikonowa ma miejsce na
+  // pigułkę na każdej szerokości, więc wiersz zniknął.
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót drugiego wystąpienia — na pewnych
+  // szerokościach klient widziałby dwa kalendarze obok siebie, a testy stanu
+  // pigułki (wyżej) trafiałyby losowo w jeden z nich.
+  it("pigułka ma DOKŁADNIE JEDNO wystąpienie w dokumencie", () => {
+    render(shell());
+    expect(document.querySelectorAll("[data-store-term-toggle]")).toHaveLength(1);
+    expect(document.querySelectorAll("[data-store-term-summary]")).toHaveLength(1);
+  });
+
+  // [F7b] „NIE ZA SZEROKA" (dyspozycja właściciela): fraza terminu ma sufit
+  // szerokości i ścina się wielokropkiem, zamiast rozpychać belkę.
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie `max-w`/`truncate` — długa fraza („26 sie
+  // – 2 wrz 2027 · 8 dni") wypycha koszyk poza ekran na telefonie.
+  it("fraza terminu ma sufit szerokości i ścina się, a nie rozpycha belki", () => {
+    render(shell());
+    const pill = document.querySelector<HTMLButtonElement>("[data-store-term-toggle]")!;
+    expect(pill.className, "pigułka bez sufitu szerokości").toContain("max-w-[11rem]");
+    expect(
+      document.querySelector("[data-store-term-summary]")!.className,
+      "fraza bez truncate — pigułka rośnie z długością daty",
+    ).toContain("truncate");
   });
 
   // CO MUSIAŁOBY SIĘ ZEPSUĆ (R2): gdyby powłoka zaczęła malować dostępność,

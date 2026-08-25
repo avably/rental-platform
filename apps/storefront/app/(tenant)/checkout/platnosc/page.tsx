@@ -123,12 +123,6 @@ export default async function TenantPaymentPage() {
       term={null}
       /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
       categoryNav={categoryNavItems(catalog)}
-      /*
-        TRYB KASOWY (F7 pkt 4) — trasa jest częścią ścieżki `/checkout/*`:
-        klient płaci; listwa kategorii i pełne pole szukania to dystrakcja
-        dokładnie tej samej klasy, co na kasie.
-      */
-      headerMode="checkout"
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.title}</h1>
       <div className="mt-6">

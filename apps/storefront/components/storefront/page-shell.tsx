@@ -18,11 +18,7 @@ import type { PublishedSite, ResolvedSiteStyle } from "@avably/core/site";
 import { cn, SITE_CONTAINER } from "@avably/ui";
 import type { ReactNode } from "react";
 
-import {
-  StoreChrome,
-  type StoreHeaderMode,
-  type StoreTermInput,
-} from "@/components/storefront/store-chrome";
+import { StoreChrome, type StoreTermInput } from "@/components/storefront/store-chrome";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import type { CategoryNavItem } from "@/lib/catalog/category-nav";
 import type { StoreLogo } from "@/lib/site/store-logo";
@@ -37,7 +33,6 @@ export function PageShell({
   siteImageBase,
   term,
   categoryNav,
-  headerMode,
   currentPath,
   children,
   className,
@@ -80,13 +75,6 @@ export function PageShell({
    */
   categoryNav?: readonly CategoryNavItem[];
   /**
-   * TRYB NAGŁÓWKA (F7) — patrz `StoreHeaderMode` w `StoreChrome`. Koszyk
-   * i kasa podają `"checkout"` (bez listwy kategorii, search jako ikona —
-   * redukcja dystrakcji); podstrony treściowe nie podają nic i dostają
-   * bezpieczny tryb `"content"`.
-   */
-  headerMode?: StoreHeaderMode;
-  /**
    * Publiczna ścieżka bieżącej strony (S-52) — do oznaczenia self-linków
    * stopki (`aria-current="page"`); patrz `StoreChrome`.
    */
@@ -104,7 +92,6 @@ export function PageShell({
       siteImageBase={siteImageBase}
       term={term}
       categoryNav={categoryNav}
-      {...(headerMode ? { headerMode } : {})}
       currentPath={currentPath}
       /*
         KOTWICE STOPKI PROWADZĄ NA STRONĘ GŁÓWNĄ (faza 0; poprawione w ADR-186).

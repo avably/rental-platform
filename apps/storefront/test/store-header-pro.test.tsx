@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /**
- * NAGŁÓWEK „PRO" (F7) — sticky, badge licznika POZYCJI, wyszukiwanie w belce.
+ * NAGŁÓWEK SKLEPU — sticky (F7), IKONOWY (F7b): badge licznika POZYCJI
+ * i wyszukiwanie zwinięte do jednego znaku.
  *
  * Trzy zdania, których pilnuje ten plik:
  *
@@ -12,10 +13,15 @@
  *   2. BADGE = POZYCJE, NIE SZTUKI (spec F7 pkt 5): 2 pozycje × (3+1 szt.)
  *      pokazują „2", a nazwa dostępna odnośnika brzmi „Koszyk, 2 pozycje"
  *      (odmiana `Intl.PluralRules`). Zdjęcie badge'a = RED (dowód mutacyjny).
- *   3. SEARCH: formularz GET → `/katalog?q=` w dwóch formach (pełne pole od
- *      48 rem kontenera / ikona z panelem pod belką), na kasie WYŁĄCZNIE
- *      ikona; enhancement (autofocus po otwarciu, Escape zamyka) jest
- *      dodatkiem do działającego HTML-a, nie warunkiem.
+ *   3. SEARCH: formularz GET → `/katalog?q=` w JEDNEJ formie (F7b) — ikona
+ *      44 × 44 z panelem pełnej szerokości POD belką, na każdej trasie i
+ *      każdej szerokości; enhancement (autofocus po otwarciu, Escape zamyka)
+ *      jest dodatkiem do działającego HTML-a, nie warunkiem.
+ *
+ * [F7b] Zdjęte asercje wariantu „full" (pełne pole w belce od 48 rem
+ * kontenera) i wariantu kasowego: właściciel zdjął pełne pole z produkcji
+ * („search jako tylko ikonka"), więc prop `variant` przestał istnieć —
+ * a wraz z nim jedyna różnica między kasą a resztą tras.
  */
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -153,37 +159,25 @@ describe("F7 — koszyk z badge'em licznika POZYCJI", () => {
 const LABELS = { label: "Szukaj w katalogu", placeholder: "Szukaj sprzętu…", submit: "Szukaj" };
 
 describe("F7 — wyszukiwanie w belce", () => {
-  it("wariant PEŁNY: formularz GET → /katalog z polem `q`, widoczny od 48 rem kontenera", () => {
-    const { container } = render(<StoreHeaderSearch labels={LABELS} variant="full" />);
-    const form = container.querySelector("form[data-store-header-search-inline]");
-    expect(form, "pełne pole zniknęło z belki — mandat „search widoczny” pada").not.toBeNull();
-    expect(form!.getAttribute("action")).toBe("/katalog");
-    expect(form!.getAttribute("method")).toBe("get");
-    const input = form!.querySelector("input[type=search]")!;
-    expect(input.getAttribute("name")).toBe("q");
-    // 44 px celu dotykowego i rozjazd form przez KONTENER, nie viewport.
-    expect(input.className).toContain("h-11");
-    expect(form!.className).toContain("hidden");
-    expect(form!.className).toContain("@min-[48rem]/site:flex");
-    // Ikona jest drugą formą TEGO SAMEGO wyszukiwania — ukrytą od 48 rem.
+  it("JEDNA forma (F7b): pełnego pola w belce NIE MA na żadnej szerokości", () => {
+    const { container } = render(<StoreHeaderSearch labels={LABELS} />);
+    expect(
+      container.querySelector("[data-store-header-search-inline]"),
+      "pełne pole wróciło do belki — właściciel zdjął je z produkcji",
+    ).toBeNull();
     const toggle = container.querySelector("details[data-store-header-search-toggle]")!;
-    expect(toggle.className).toContain("@min-[48rem]/site:hidden");
-  });
-
-  it("wariant IKONA (kasa): pełnego pola NIE MA, ikona stoi na każdej szerokości", () => {
-    const { container } = render(<StoreHeaderSearch labels={LABELS} variant="icon" />);
-    expect(container.querySelector("[data-store-header-search-inline]")).toBeNull();
-    const toggle = container.querySelector("details[data-store-header-search-toggle]")!;
+    // Ani jednej klasy progu: ikona stoi zawsze, nie „od/do" szerokości.
     expect(toggle.getAttribute("class") ?? "").not.toContain("@min-[48rem]/site:hidden");
     // Wyzwalacz: 44×44 px z etykietą dostępną (lupa sama nic nie mówi).
     const summary = toggle.querySelector("summary")!;
     expect(summary.getAttribute("aria-label")).toBe("Szukaj w katalogu");
     expect(summary.className).toContain("h-11");
     expect(summary.className).toContain("w-11");
+    expect(summary.querySelector("svg")!.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("panel pod belką: własny formularz GET → /katalog, pole pełnej szerokości", () => {
-    const { container } = render(<StoreHeaderSearch labels={LABELS} variant="icon" />);
+    const { container } = render(<StoreHeaderSearch labels={LABELS} />);
     const panel = container.querySelector("form[data-store-header-search-panel]")!;
     expect(panel.getAttribute("action")).toBe("/katalog");
     const input = panel.querySelector("input[type=search]")!;
@@ -194,7 +188,7 @@ describe("F7 — wyszukiwanie w belce", () => {
   });
 
   it("enhancement: otwarcie ustawia fokus w polu, Escape zamyka (HTML działa i bez tego)", () => {
-    const { container } = render(<StoreHeaderSearch labels={LABELS} variant="icon" />);
+    const { container } = render(<StoreHeaderSearch labels={LABELS} />);
     const details = container.querySelector<HTMLDetailsElement>(
       "details[data-store-header-search-toggle]",
     )!;
@@ -207,7 +201,7 @@ describe("F7 — wyszukiwanie w belce", () => {
   });
 
   it("tap poza panelem zamyka; tap W panelu NIE zamyka (dwie nogi dowodu)", () => {
-    const { container } = render(<StoreHeaderSearch labels={LABELS} variant="icon" />);
+    const { container } = render(<StoreHeaderSearch labels={LABELS} />);
     const details = container.querySelector<HTMLDetailsElement>(
       "details[data-store-header-search-toggle]",
     )!;
@@ -218,5 +212,41 @@ describe("F7 — wyszukiwanie w belce", () => {
     expect(details.open, "tap w pole zamknął panel — nie da się wpisać frazy").toBe(true);
     fireEvent.pointerDown(document.body);
     expect(details.open, "tap poza panelem go nie zamknął").toBe(false);
+  });
+});
+
+/* ================================ F7b ================================ */
+
+describe("F7b — belka ikonowa: koszyk jako znak z licznikiem w narożniku", () => {
+  /*
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót widocznego napisu „Koszyk" w belce (koniec
+    „tylko ikony") albo — gorzej — zdjęcie nazwy dostępnej razem z napisem,
+    czyli odnośnik bez nazwy dla czytnika ekranu. Dwie asercje pilnują OBU
+    stron tej zamiany.
+  */
+  it("koszyk niesie znak i nazwę `sr-only`, a nie widoczny napis", async () => {
+    const { container } = await renderNaglowek();
+    const cart = container.querySelector('a[href="/cart"]')!;
+    expect(cart.querySelector("svg"), "koszyk stracił znak").not.toBeNull();
+    const nazwa = cart.querySelector(".sr-only");
+    expect(nazwa, "koszyk bez nazwy dostępnej — ikona sama nic nie mówi").not.toBeNull();
+    expect(nazwa!.textContent).toBe("Koszyk");
+    // Cel dotykowy jest KWADRATEM, nie paddingiem wokół tekstu (F7b).
+    for (const klasa of ["h-11", "w-11"]) {
+      expect(cart.className, `koszyk stracił ${klasa}`).toContain(klasa);
+    }
+  });
+
+  it("badge licznika siada w narożniku znaku i nie przechwytuje kliknięcia", async () => {
+    stanKoszyka.cart = DWIE_POZYCJE;
+    const { container } = await renderNaglowek();
+    const badge = container.querySelector(".site-badge")!;
+    expect(badge.className, "licznik przestał być w narożniku ikony").toContain("absolute");
+    expect(
+      badge.className,
+      "badge łapie kliknięcia — róg celu dotykowego przestaje prowadzić do koszyka",
+    ).toContain("pointer-events-none");
+    // Kotwicą pozycjonowania jest sam odnośnik koszyka (`relative` w pakiecie).
+    expect(container.querySelector('a[href="/cart"]')!.className).toContain("relative");
   });
 });

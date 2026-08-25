@@ -219,12 +219,14 @@ export function ProductFeatures({ features }: { features: readonly StorefrontPro
  *
  * Do fazy B przycisk pojawiał się WYŁĄCZNIE, gdy operator wpisał `ctaLabel`;
  * bez niego kafel prowadził do podstrony pozycji, ale bez ani jednej afordancji,
- * że tam prowadzi. Fallback („Sprawdź dostępność"/„Wypożycz") daje tę afordancję
- * ZAWSZE, gdy jest dokąd prowadzić.
+ * że tam prowadzi. Fallback (od F7b „Zobacz szczegóły") daje tę afordancję
+ * ZAWSZE, gdy jest dokąd prowadzić — i mówi WYŁĄCZNIE o nawigacji, bo tylko
+ * ona jest tu obietnicą: dostępność w wybranym terminie stoi już na kaflu
+ * (chip liczy się sam, patrz `product-availability.tsx`).
  *
  * ==================== DLACZEGO POD WARUNKIEM `href` ====================
  *
- * Przycisk „Sprawdź dostępność" bez celu jest kłamstwem, a nie zachętą. `href`
+ * Przycisk „Zobacz szczegóły" bez celu jest kłamstwem, a nie zachętą. `href`
  * podaje WYŁĄCZNIE storefront publiczny (warstwa danych, patrz `StorefrontProduct`).
  * Podgląd kreatora i miniatura szablonu `href` nie mają — więc fallback się tam
  * NIE pokazuje, a podgląd zostaje bajt w bajt taki, jak przed fazą B. Operatorska

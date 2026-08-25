@@ -61,13 +61,6 @@ export default async function TenantCartPage() {
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
       /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
       categoryNav={categoryNavItems(catalog)}
-      /*
-        KOSZYK = TRYB KASOWY (F7 pkt 4): bez listwy kategorii, wyszukiwanie
-        zwinięte do ikony — redukcja dystrakcji na ścieżce do zapłaty.
-        `categoryNav` zostaje (kontrakt S-30) — trasa dalej PODAJE pozycje,
-        a o ich nieużyciu rozstrzyga tryb, nie brak danych.
-      */
-      headerMode="checkout"
       /* Self-linki (S-52): „Koszyk" w nagłówku dostaje aria-current na tej trasie. */
       currentPath="/cart"
     >

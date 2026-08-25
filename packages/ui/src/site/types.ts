@@ -316,9 +316,16 @@ export interface SiteRenderLabels {
   productsCatalog: string;
   /**
    * ETYKIETA PRZYCISKU KAFLA — domyślna, gdy operator swojej nie wpisał
-   * (ADR-245, faza B). Chrome renderu, nie treść najemcy: „Sprawdź dostępność"
-   * mówi językiem STRONY. Pokazuje się WYŁĄCZNIE na kaflu-odnośniku (storefront),
-   * nigdy w podglądzie kreatora — regułę trzyma `productCtaLabel` w rdzeniu kafla.
+   * (ADR-245, faza B). Chrome renderu, nie treść najemcy. Pokazuje się WYŁĄCZNIE
+   * na kaflu-odnośniku (storefront), nigdy w podglądzie kreatora — regułę
+   * trzyma `productCtaLabel` w rdzeniu kafla.
+   *
+   * OD F7b NIE MÓWI „Sprawdź dostępność", tylko „Zobacz szczegóły". Powód jest
+   * w dyspozycji właściciela: przy wybranym terminie dostępność WIDAĆ na kaflu
+   * (chip liczy się sam, bez kliknięcia), więc przycisk obiecujący sprawdzenie
+   * zapraszał do kroku, który już się wydarzył — a przy braku terminu obiecywał
+   * odpowiedź, której klik sam z siebie nie daje (na stronie sprzętu i tak
+   * trzeba najpierw wybrać daty). Nowa etykieta jest prawdziwa w OBU stanach.
    */
   productsCta: string;
   contactEmail: string;

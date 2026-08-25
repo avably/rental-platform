@@ -258,6 +258,74 @@ describe("kafel katalogu streszcza dostępność do stanu handlowego (ADR-245)",
     ).toBe(copy.term.statusBusy);
   });
 
+  /*
+    [F7b] AUTO-DOSTĘPNOŚĆ NA LISTINGU (dyspozycja właściciela: „dostępność sama
+    się sprawdza bez kliknięcia, jeśli daty już mamy").
+
+    Scenariusz jest DOSŁOWNIE bez interakcji: termin siedzi w koszyku (zapisała
+    go pigułka belki, druga karta albo poprzednia sesja), klient wchodzi na
+    listing i chipy stoją. Test wykonuje ZERO zdarzeń wejściowych — gdyby odczyt
+    wisiał na kliknięciu („Sprawdź dostępność" jako KROK), byłby czerwony.
+
+    Testy wyżej dowodzą, ŻE liczby dochodzą na właściwe kafle; ten dowodzi, że
+    dochodzą SAME. Różnicę widać dopiero wtedy, gdy ktoś przeniesie odczyt za
+    interakcję — tamte przeszłyby, ten nie.
+  */
+  it("termin w koszyku: chipy stoją na kaflach BEZ ani jednej interakcji", async () => {
+    render(katalog());
+
+    await waitFor(() => expect(naKaflu(ROWER)).not.toBeNull());
+    // Trzy kafle, trzy odpowiedzi — i ani jednego kliknięcia po drodze.
+    expect(stanKafla(ROWER)).toBe("low");
+    expect(stanKafla(KAJAK)).toBe("unavailable");
+    expect(stanKafla(NAMIOT)).toBe("available");
+    expect(checkCatalogAvailability).toHaveBeenCalledWith(START, END);
+    // Kontrola przyrządu: w dokumencie nie ma żadnego przycisku „sprawdź",
+    // którego kliknięcie mogłoby te chipy wywołać.
+    expect(document.querySelector("[data-store-term-apply]")).toBeNull();
+  });
+
+  /*
+    [F7b] I AKTUALIZUJĄ SIĘ SAME. Zmiana terminu (pigułka belki, druga karta)
+    przeliczą chipy bez wchodzenia w cokolwiek na listingu.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: odpowiedź trzymana bez klucza pytania — klient
+    widziałby liczby dla POPRZEDNIEGO terminu i nie miałby jak zauważyć, że są
+    nieaktualne.
+  */
+  it("zmiana terminu przelicza chipy bez interakcji na listingu", async () => {
+    render(katalog());
+    await waitFor(() => expect(stanKafla(ROWER)).toBe("low"));
+
+    const start2 = dayFromToday(10);
+    const end2 = dayFromToday(12);
+    checkCatalogAvailability.mockResolvedValue(odpowiedz({ [ROWER]: 9, [KAJAK]: 1, [NAMIOT]: 0 }));
+    writeCart({ ...EMPTY_CART, startDate: start2, endDate: end2 });
+
+    await waitFor(() => expect(stanKafla(ROWER)).toBe("available"));
+    expect(stanKafla(KAJAK)).toBe("low");
+    expect(stanKafla(NAMIOT)).toBe("unavailable");
+    expect(checkCatalogAvailability).toHaveBeenLastCalledWith(start2, end2);
+  });
+
+  /*
+    [F7b] CHIP NIEDOBORU BEZ WYKRZYKNIKA (dyspozycja właściciela). Treść
+    zostaje, znak ostrzegawczy znika — „Zostały 2 szt." to informacja handlowa,
+    a nie alarm. Stan skrajny (zajęty) dalej ma swój znak: dowód, że zniknięcie
+    dotyczy JEDNEGO stanu, a nie wszystkich glifów naraz.
+  */
+  it("chip niedoboru na kaflu nie niesie znaku ostrzeżenia", async () => {
+    render(katalog());
+    await waitFor(() => expect(stanKafla(ROWER)).toBe("low"));
+
+    expect(naKaflu(ROWER)).toContain("2");
+    expect(
+      znacznikKafla(ROWER)!.querySelector("svg"),
+      "wykrzyknik wrócił na chip niedoboru",
+    ).toBeNull();
+    expect(znacznikKafla(KAJAK)!.querySelector("svg")).not.toBeNull();
+  });
+
   // Odmowa bazy (najemca poza oknem handlowym, awaria transportu) gasi liczby
   // W CAŁOŚCI. Kafel z ostatnią znaną liczbą byłby gorszy niż kafel bez niej.
   it("odmowa odczytu gasi liczby na wszystkich kaflach", async () => {

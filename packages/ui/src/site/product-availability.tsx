@@ -53,11 +53,10 @@
  *
  * ==================== STAN NIE SAMYM KOLOREM (WCAG 1.4.1) ====================
  *
- * Stan niesie TEKST (trzy różne etykiety) i GLIF (trzy różne kształty:
- * „✓", „!", „×"). Kolor jest wyłącznie WZMOCNIENIEM — ktoś, kto go nie
- * rozróżnia, czyta stan z etykiety i z kształtu znaku. Znak jest `aria-hidden`,
- * bo jego treść niesie już etykieta obok; czytnik ekranu nie ma go czytać drugi
- * raz. To jest twardy warunek 1.4.1, nie ozdoba.
+ * Stan niesie TEKST — trzy różne etykiety, i to one są nośnikiem informacji.
+ * Kolor jest wyłącznie WZMOCNIENIEM. Znak (ptaszek przy nadmiarze, krzyżyk
+ * przy zajętości) jest `aria-hidden`, bo jego treść niesie już etykieta obok;
+ * stan `low` znaku nie ma wcale od F7b (patrz `AvailabilityGlyph`).
  *
  * ==================== ZERO KLAS W TYM PLIKU ====================
  *
@@ -143,11 +142,26 @@ export function availabilityStateOf(units: number): SiteProductAvailabilityState
 /**
  * GLIF STANU — sam kształt, `aria-hidden`, bo treść niesie już etykieta obok.
  *
- * Trzy WYRAŹNIE różne kształty (ptaszek / wykrzyknik / krzyżyk), żeby stan dało
- * się odczytać bez koloru (WCAG 1.4.1). `focusable="false"` — w części
- * przeglądarek `<svg>` bez tego łapie tabulację i dokłada pusty przystanek.
+ * ==================== NIEDOBÓR BEZ WYKRZYKNIKA (F7b) ====================
+ *
+ * Do F7b stan `low` niósł wykrzyknik. Właściciel zdjął go po obejrzeniu
+ * produkcji („z chipsa dostępności usuń wykrzyknik"), i słusznie: „Zostały
+ * 2 szt." to informacja HANDLOWA — ile jeszcze można wziąć — a wykrzyknik
+ * czyta się jak OSTRZEŻENIE o usterce, tym samym znakiem, którym interfejs
+ * mówi „coś poszło źle". Chip mówi teraz samą treścią.
+ *
+ * WCAG 1.4.1 DALEJ SPEŁNIONE, i to nie przypadkiem: trzy stany mają trzy różne
+ * ETYKIETY („Dostępny" / „Zostały N szt." / „Zajęty w tym terminie"), a warunek
+ * dotyczy tego, żeby informacji nie niósł SAM kolor. Glif był wzmocnieniem
+ * drugiego rzędu; zostaje przy stanach skrajnych (ptaszek / krzyżyk), gdzie
+ * czyta się jak znak statusu, a nie jak alarm.
+ *
+ * `focusable="false"` — w części przeglądarek `<svg>` bez tego łapie tabulację
+ * i dokłada pusty przystanek.
  */
 function AvailabilityGlyph({ state }: { state: SiteProductAvailabilityState }) {
+  // Niedobór nie dostaje ŻADNEGO znaku — patrz docblock wyżej.
+  if (state === "low") return null;
   return (
     <svg
       aria-hidden="true"
@@ -163,11 +177,6 @@ function AvailabilityGlyph({ state }: { state: SiteProductAvailabilityState }) {
     >
       {state === "available" ? (
         <path d="M20 6 9 17l-5-5" />
-      ) : state === "low" ? (
-        <>
-          <path d="M12 8v5" />
-          <path d="M12 16.5h.01" />
-        </>
       ) : (
         <path d="M18 6 6 18M6 6l12 12" />
       )}

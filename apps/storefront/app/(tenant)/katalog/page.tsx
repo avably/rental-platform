@@ -46,6 +46,10 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { CatalogList } from "@/components/storefront/catalog-list";
+import {
+  ListingCategoryColumn,
+  ListingCategoryRow,
+} from "@/components/storefront/listing-categories";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { catalogTileContent } from "@/lib/catalog/catalog-tiles";
 import { parseCatalogSearchQuery } from "@/lib/catalog/catalog-search";
@@ -195,10 +199,9 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
         z guardem pustych — patrz `loadCategoryNav`.
       */
       categoryNav={ctx.categoryNav}
-      /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
-      headerMode="catalog"
       searchQuery={ctx.query}
-      /* Bieżąca strona (S-52/F7): „Cały katalog" w listwie dostaje aria-current. */
+      /* Bieżąca strona (S-52/F7b): „Wszystkie kategorie" w rozwijanej liście
+         i „Wszystkie kategorie" w kolumnie listingu dostają aria-current. */
       currentPath={`/${CATALOG_PATH_SEGMENT}`}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
@@ -207,88 +210,117 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
         RYTM LISTINGU ≠ RYTM SEKCJI (F9b/F7, uwaga właściciela 2026-08-25:
         „przestrzeń między menu a produktami — tragiczna"). `styles.section`
         (py-16/20) jest skalą SEKCJI MARKETINGOWYCH strony najemcy; listing to
-        narzędzie — pod przyklejoną belką z listwą kategorii (F7) tytuł ma
-        stać tuż pod chrome, nie za ekranem pustki. Lustro strony kategorii
+        narzędzie — pod przyklejoną belką tytuł ma stać tuż pod chrome, nie za
+        ekranem pustki. Lustro strony kategorii
         (tam pomiar i wzorzec — patrz `category-page.tsx`).
       */}
       <main className="pt-5 pb-16 @min-[40rem]/site:pt-6 @min-[40rem]/site:pb-20">
         <div className={styles.container}>
           {/*
-            NAGŁÓWEK KOMPAKTOWY (F9) — licznik pozycji w JEDNYM wierszu z h1
-            (lustro strony kategorii), zamiast osobnego akapitu między polem
-            szukania a siatką. Przy aktywnym wyszukiwaniu wiersz niesie liczbę
-            wyników z frazą; przy PUSTYM wyniku licznika nie ma wcale, bo tę
-            samą informację mówi pełnym zdaniem komunikat pod toolbarem.
+            SIATKA LISTINGU (F7b) — lustro strony kategorii: kolumna kategorii
+            po lewej od 64 rem kontenera, treść obok. Poniżej progu kolumna
+            znika, a jej rolę przejmuje przewijany rząd pastylek pod tytułem
+            (patrz `listing-categories.tsx`). `minmax(0,1fr)` na kolumnie
+            treści — bez tego siatka wyników rozpycha ją ponad pas strony.
           */}
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
-            <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
-              {copy.catalog.heading}
-            </h1>
-            {ctx.query.length > 0 && ctx.total === 0 ? null : (
-              <p data-catalog-count className="site-text-muted text-sm">
-                {"· "}
-                {ctx.query.length > 0 ? (
-                  <>
-                    {format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })}
-                    {" · "}
-                    <a data-catalog-search-clear href={`/${CATALOG_PATH_SEGMENT}`} className="site-link underline">
-                      {copy.catalog.searchClear}
-                    </a>
-                  </>
-                ) : (
-                  pluralCount(ctx.total, locale, {
-                      one: copy.catalog.countOne,
-                      few: copy.catalog.countFew,
-                      many: copy.catalog.countMany,
-                    })
+          <div className="grid gap-x-8 gap-y-4 @min-[64rem]/site:grid-cols-[15rem_minmax(0,1fr)]">
+            <ListingCategoryColumn
+              items={ctx.categoryNav}
+              heading={copy.nav.categories}
+              allCategoriesLabel={copy.nav.allCategories}
+              currentPath={`/${CATALOG_PATH_SEGMENT}`}
+            />
+            <div className="min-w-0">
+              {/*
+                NAGŁÓWEK KOMPAKTOWY (F9) — licznik pozycji w JEDNYM wierszu z h1
+                (lustro strony kategorii), zamiast osobnego akapitu nad siatką.
+                Przy aktywnym wyszukiwaniu wiersz niesie liczbę wyników z frazą;
+                przy PUSTYM wyniku licznika nie ma wcale, bo tę samą informację
+                mówi pełnym zdaniem komunikat niżej.
+              */}
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
+                <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
+                  {copy.catalog.heading}
+                </h1>
+                {ctx.query.length > 0 && ctx.total === 0 ? null : (
+                  <p data-catalog-count className="site-text-muted text-sm">
+                    {"· "}
+                    {ctx.query.length > 0 ? (
+                      <>
+                        {format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })}
+                        {" · "}
+                        <a data-catalog-search-clear href={`/${CATALOG_PATH_SEGMENT}`} className="site-link underline">
+                          {copy.catalog.searchClear}
+                        </a>
+                      </>
+                    ) : (
+                      pluralCount(ctx.total, locale, {
+                        one: copy.catalog.countOne,
+                        few: copy.catalog.countFew,
+                        many: copy.catalog.countMany,
+                      })
+                    )}
+                    {ctx.pageCount > 1
+                      ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
+                      : ""}
+                  </p>
                 )}
-                {ctx.pageCount > 1
-                  ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
-                  : ""}
-              </p>
-            )}
-          </div>
+              </div>
 
-          {/*
-            BEZ TOOLBARA WYSZUKIWANIA (F9c): od F7 pole wyszukiwania stoi
-            w BELCE na każdej trasie i na `/katalog` dostaje bieżącą frazę
-            (`searchQuery` wyżej) — drugie pole pod tytułem było czystym
-            dublem. Katalog nie ma też przełącznika sortowania, bo
-            `get_public_catalog_page` nie przyjmuje porządku — select bez
-            skutku byłby kontrolką-atrapą (stan odnotowany w F9). „Wyczyść"
-            mieszka przy liczniku wyników i w stanie pustym.
-          */}
-
-          {ctx.query.length > 0 && ctx.total === 0 ? (
-            /*
-              STAN PUSTY WYSZUKIWANIA — inny komunikat niż katalog pusty: tu
-              oferta ISTNIEJE, tylko nic nie pasuje do frazy. Pole wyżej zostaje,
-              żeby klient mógł zawęzić inaczej albo wyczyścić.
-            */
-            <p data-catalog-search-empty className="site-text-muted mt-6">
-              {format(copy.catalog.searchEmpty, { query: ctx.query })}{" "}
-              <a data-catalog-search-clear href={`/${CATALOG_PATH_SEGMENT}`} className="site-link underline">
-                {copy.catalog.searchClear}
-              </a>
-            </p>
-          ) : (
-            <>
-              {/* `mt-6` — zwarty rytm listingu (F9b), lustro strony kategorii. */}
-              <div className="mt-6">
-                <CatalogList
-                  products={seam.products}
-                  content={catalogTileContent(site?.sections)}
-                  styles={styles}
-                  labels={seam.labels}
-                  copy={copy}
-                  page={ctx.page}
-                  pageCount={ctx.pageCount}
-                  searchQuery={ctx.query}
+              {/*
+                RZĄD KATEGORII NA WĄSKIM KONTENERZE (F7b) — pod tytułem, w tym
+                samym miejscu, co na stronie kategorii. Powyżej 64 rem znika:
+                tam tę samą listę niesie kolumna po lewej.
+              */}
+              <div className="mt-4">
+                <ListingCategoryRow
+                  items={ctx.categoryNav}
+                  heading={copy.nav.categories}
+                  allCategoriesLabel={copy.nav.allCategories}
+                  currentPath={`/${CATALOG_PATH_SEGMENT}`}
                 />
               </div>
-            </>
-          )}
+
+              {/*
+                BEZ TOOLBARA WYSZUKIWANIA (F9c): pole wyszukiwania stoi w BELCE
+                na każdej trasie i na `/katalog` dostaje bieżącą frazę
+                (`searchQuery` wyżej) — drugie pole pod tytułem było czystym
+                dublem. Katalog nie ma też przełącznika sortowania, bo
+                `get_public_catalog_page` nie przyjmuje porządku — select bez
+                skutku byłby kontrolką-atrapą (stan odnotowany w F9). „Wyczyść"
+                mieszka przy liczniku wyników i w stanie pustym.
+              */}
+
+              {ctx.query.length > 0 && ctx.total === 0 ? (
+                /*
+                  STAN PUSTY WYSZUKIWANIA — inny komunikat niż katalog pusty: tu
+                  oferta ISTNIEJE, tylko nic nie pasuje do frazy. Pole w belce
+                  zostaje, żeby klient mógł zawęzić inaczej albo wyczyścić.
+                */
+                <p data-catalog-search-empty className="site-text-muted mt-6">
+                  {format(copy.catalog.searchEmpty, { query: ctx.query })}{" "}
+                  <a data-catalog-search-clear href={`/${CATALOG_PATH_SEGMENT}`} className="site-link underline">
+                    {copy.catalog.searchClear}
+                  </a>
+                </p>
+              ) : (
+                /* `mt-6` — zwarty rytm listingu (F9b), lustro strony kategorii. */
+                <div className="mt-6">
+                  <CatalogList
+                    products={seam.products}
+                    content={catalogTileContent(site?.sections)}
+                    styles={styles}
+                    labels={seam.labels}
+                    copy={copy}
+                    page={ctx.page}
+                    pageCount={ctx.pageCount}
+                    searchQuery={ctx.query}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </main>
     </StoreChrome>
