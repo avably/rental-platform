@@ -1036,6 +1036,108 @@
 }
 
 /*
+ * =====================================================================
+ * KARTA LISTINGU W JEDNEJ KOLUMNIE — UKŁAD POZIOMY (F9, spec przebudowy
+ * ścieżki storefrontu 2026-08-25)
+ * =====================================================================
+ *
+ * Poniżej progu jednej kolumny (28 rem — TEN SAM próg, co `site-product-columns`
+ * wyżej; żadnego nowego progu układu) karta PIONOWA marnuje ekran telefonu:
+ * zdjęcie 4:3 na pełnej szerokości spycha cenę i przycisk poza widok, więc
+ * klient porównuje pozycje scrollem po jednej. Układ POZIOMY — miniatura
+ * 6 rem (96 px) po lewej, tytuł i meta po prawej, cena i przycisk na pełnej
+ * szerokości POD spodem — mieści ~2 pozycje w oknie 360–430 px.
+ *
+ * ZASIĘG: WYŁĄCZNIE listing (katalog i strona kategorii) — klasę
+ * `site-listing-cards` nadają ich siatki (catalog-list / category-list
+ * w storefroncie). Sekcja sprzętu na stronie najemcy i płótno kreatora zostają
+ * przy karcie pionowej (stan po K1): tam siatka jest wizytówką oferty, nie
+ * narzędziem porównywania. Selektory celują w kafel Z KOTWICĄ (`> li > a`),
+ * bo listing zawsze ją ma (warstwa danych podaje `href`) — kafel statyczny
+ * podglądu tej klasy nigdy nie dostaje.
+ *
+ * MECHANIKA: float + clear ŚWIADOMIE, nie grid/flex. Kafel ma stały DOM
+ * (kotwica → zdjęcie → pole treści z N dziećmi), a „kilka rodzeństw opływa
+ * jeden prostokąt, reszta na pełnej szerokości pod nim" to jest DOKŁADNIE
+ * model float: grid wymagałby znanej z góry liczby wierszy meta, a flex nie
+ * umie łamać kolumny obok stałego pudełka. Pole treści przechodzi na
+ * `display: block` — bloki w nim opływają miniaturę, elementy z własnym BFC
+ * (tytuł i opis z line-clamp mają `overflow: hidden`) są zwężane obok niej.
+ *
+ * Reguły stoją POZA warstwami Tailwinda (jak cały ten arkusz), więc wygrywają
+ * z klasami utility kafla (`mt-1`, `text-sm`, `mt-auto`) bez `!important`.
+ * Zero zmiennych ról — geometria i typografia; kolory zostają z klas kafla.
+ */
+@container site (width < 28rem) {
+  .site-listing-cards > li > a {
+    display: block;
+    padding: 0.75rem;
+  }
+
+  .site-listing-cards > li > a > img,
+  .site-listing-cards > li > a > .site-placeholder {
+    float: left;
+    width: 6rem;
+    height: 6rem;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: var(--site-radius);
+    margin-right: 0.75rem;
+  }
+
+  /* Pole treści przestaje być kolumną flex — jego bloki opływają miniaturę. */
+  .site-listing-cards > li > a > div {
+    display: block;
+    padding: 0;
+  }
+
+  /* Tytuł: najwyżej dwie linie (wzorzec listingu), krój bez zmian. */
+  .site-listing-cards [data-products-name] {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .site-listing-cards [data-products-subtitle] {
+    display: block;
+    margin-top: 0.125rem;
+  }
+
+  /*
+   * OPIS ZNIKA na karcie poziomej: trzy linie tekstu marketingowego niweczą
+   * cel układu (mniej scrolla przy porównywaniu), a pełny opis stoi na stronie
+   * pozycji, jeden tap dalej. Podtytuł i cechy — dane wskazane przez operatora
+   * ŚWIADOMIE jako parametry kafla — zostają.
+   */
+  .site-listing-cards [data-products-description] {
+    display: none;
+  }
+
+  /*
+   * CENA POD CAŁOŚCIĄ — `clear: both` kończy opływanie miniatury; 17 px/600
+   * (po tytule największy element karty — wzorzec listingu). Kolor bez zmian
+   * (rola akcentu z klasy kafla).
+   */
+  .site-listing-cards [data-products-price] {
+    display: block;
+    clear: both;
+    margin-top: 0.625rem;
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  /* CTA na pełną szerokość karty — cel dotykowy ≥44 px całym pasem. */
+  .site-listing-cards [data-products-cta] {
+    display: block;
+    clear: both;
+    width: 100%;
+    margin-top: 0.75rem;
+    text-align: center;
+  }
+}
+
+/*
  * PEŁNE RZĘDY: reguła ucinająca ostatni, niepełny rząd obowiązuje WYŁĄCZNIE
  * w pasmie swojej liczby kolumn. Pasmo dwóch kolumn jest domknięte z obu
  * stron ZAGNIEŻDŻONYM zapytaniem (28 rem ≤ szerokość < 64 rem) — oba warunki

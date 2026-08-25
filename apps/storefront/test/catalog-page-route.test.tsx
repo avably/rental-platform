@@ -217,6 +217,23 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     );
   }, BUDZET_RENDERU);
 
+  it("nagłówek katalogu (F9): licznik przy h1, toolbar z polem szukania, karty poziome", async () => {
+    // [F9] Kompaktowy nagłówek — licznik pozycji w wierszu tytułu (odmiana
+    // przez Intl.PluralRules), toolbar z widocznym polem szukania i siatka
+    // z klasą karty poziomej dla pasma jednej kolumny. Osobny akapit
+    // „Pozycji w ofercie: N" wypadł ŚWIADOMIE (potrójny tytuł / rozwlekły
+    // nagłówek z audytu 2026-08-25).
+    const html = await renderKatalog({});
+    expect((html.match(/<h1[\s>]/g) ?? []).length, "strona ma więcej niż jeden h1").toBe(1);
+    expect(html, "brak licznika pozycji przy tytule").toContain("data-catalog-count");
+    expect(html, "licznik nie odmienia liczebnika").toContain(`${POZYCJI} pozycji`);
+    expect(html).toContain("data-listing-toolbar");
+    expect(html, "pole szukania zniknęło z katalogu").toContain("data-catalog-search");
+    expect(html, "siatka katalogu bez klasy karty poziomej").toMatch(
+      /<ul(?=[^>]*data-catalog-grid)(?=[^>]*site-listing-cards)[^>]*>/,
+    );
+  }, BUDZET_RENDERU);
+
   it("do dokumentu wchodzi JEDNA strona wyników, a nie cały katalog", async () => {
     const html = await renderKatalog({});
 

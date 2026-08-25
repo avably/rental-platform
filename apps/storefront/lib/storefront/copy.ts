@@ -34,3 +34,23 @@ export function format(template: string, vars: Record<string, string | number>):
     key in vars ? String(vars[key]) : match,
   );
 }
+
+/**
+ * LICZNIK POZYCJI Z POPRAWNĄ ODMIANĄ („1 pozycja / 2 pozycje / 5 pozycji").
+ *
+ * Regułę mnogości rozstrzyga `Intl.PluralRules` dla locale NAJEMCY (oś
+ * tenancka, jak całe copy) — a nie drabinka `if` po końcówkach, która dla
+ * polskiego myli się na 12–14 i na setkach. Copy niesie TRZY formy jako
+ * szablony; angielski ma form dwie, więc `few` powtarza `many` w pliku
+ * messages (parytet kluczy pilnowany testem), a `other` CLDR schodzi na
+ * `many` — dla obu języków to jest właściwa forma domyślna.
+ */
+export function pluralCount(
+  total: number,
+  locale: StorefrontLocale,
+  forms: { one: string; few: string; many: string },
+): string {
+  const rule = new Intl.PluralRules(locale).select(total);
+  const template = rule === "one" ? forms.one : rule === "few" ? forms.few : forms.many;
+  return format(template, { total });
+}

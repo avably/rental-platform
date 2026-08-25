@@ -19,6 +19,9 @@
  * `lib/checkout/catalog` → klient. Atrapa STRONICUJE i SORTUJE naprawdę, żeby
  * przypadek „druga strona ma inne pozycje" umiał być czerwony.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import type { ReactNode } from "react";
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -110,6 +113,8 @@ vi.mock("next/navigation", () => ({
   // Nagłówek sklepu czyta ścieżkę pod aria-current koszyka (S-52);
   // poza routerem Nexta hook oddaje null — jak w renderToStaticMarkup.
   usePathname: () => null,
+  // Select sortowania (F9) nawiguje routerem; w SSR hook ma tylko istnieć.
+  useRouter: () => ({ push: () => {} }),
 }));
 
 vi.mock("@/lib/supabase-server", () => ({
@@ -232,13 +237,25 @@ describe("strona kategorii (ADR-247)", () => {
     await expect(renderKategoria("nieznane")).rejects.toThrow("notFound");
   });
 
-  it("kategoria PUSTA renderuje widok z komunikatem, a NIE 404", async () => {
+  it("kategoria PUSTA renderuje stan pusty z CTA do katalogu, a NIE 404", async () => {
     stan.total = 0;
     const html = await renderKategoria(SLUG);
     expect(html, "pusta kategoria nie wyrenderowała niczego").toContain("data-category-empty");
+    // [F9] Stan pusty wg spec: zdanie + wyjście do pełnego katalogu (nie ślepy
+    // zaułek). Stara asercja na „W tej kategorii nie ma jeszcze produktów"
+    // zamieniona ŚWIADOMIE — copy przeszło na kształt „tytuł + CTA".
     expect(html, "pusta kategoria pokazała komunikat pustej listy").toContain(
-      "W tej kategorii nie ma jeszcze produktów",
+      "Ta kategoria jest jeszcze pusta",
     );
+    expect(html, "stan pusty bez wyjścia do katalogu").toMatch(
+      /<a(?=[^>]*data-category-empty-cta)(?=[^>]*href="\/katalog")[^>]*>/,
+    );
+    // Sort na pustej półce jest szumem — kontrolka ma NIE stać.
+    expect(html, "przełącznik sortowania stoi na pustej kategorii").not.toContain(
+      "data-category-sort",
+    );
+    // Pole szukania ZOSTAJE (mandat: search widoczny) — klient szuka dalej.
+    expect(html, "pole szukania zniknęło z pustej kategorii").toContain("data-catalog-search");
     // Pusta kategoria ma stronę pierwszą, ale jej strona druga to 404.
     vi.resetModules();
     stan.total = 0;
@@ -326,15 +343,35 @@ describe("strona kategorii (ADR-247)", () => {
     );
   }, BUDZET_RENDERU);
 
-  it("przełącznik sortowania jest ODNOŚNIKAMI, które trafiają w stronę 1 z sortem", async () => {
+  /*
+    [F9] Stare asercje o ODNOŚNIKACH sortowania (`data-category-sort-active`,
+    href-y per porządek) zamienione ŚWIADOMIE: mandat właściciela zamienił rząd
+    linków na natywny `<select>` (S-35). INTENCJA zostaje ta sama — cztery
+    porządki, wartość z adresu, fallback bez JS przez form GET w czysty adres
+    kategorii (`?sort=name` konsoliduje parser + kanon). Nawigację „zmiana →
+    router.push strona 1 z sortem" mierzy osobno category-sort-select.test.tsx
+    (jsdom) — renderToStaticMarkup nie wykonuje zdarzeń.
+  */
+  it("sortowanie jest natywnym select-em: opcje, wartość z adresu, fallback GET", async () => {
     const html = await renderKategoria(SLUG, { sort: "price_asc" });
     expect(html).toContain("data-category-sort");
-    // Aktywny porządek nie jest odnośnikiem do samego siebie.
-    expect(html).toContain("data-category-sort-active");
-    // Zmiana na inny porządek celuje w stronę 1 z tym sortem.
-    expect(html).toContain(`href="${categoryPagePath(SLUG, 1, "price_desc")}"`);
-    // Powrót do porządku domyślnego to adres CZYSTY (bez ?sort=).
-    expect(html).toContain(`href="${categoryPagePath(SLUG, 1, "name")}"`);
+    expect(html, "brak select-a sortowania").toContain("data-category-sort-select");
+    // Fallback bez JS: form GET celuje w CZYSTY adres kategorii.
+    expect(html).toMatch(
+      /<form(?=[^>]*data-category-sort)(?=[^>]*method="get")(?=[^>]*action="\/kategoria\/rowery")[^>]*>/,
+    );
+    expect(html).toContain('name="sort"');
+    // Wszystkie cztery porządki są opcjami.
+    for (const sort of ["name", "price_asc", "price_desc", "newest"]) {
+      expect(html, `brak opcji ${sort}`).toContain(`data-category-sort-option="${sort}"`);
+    }
+    // Wartość z adresu: `?sort=price_asc` zaznacza SWOJĄ opcję, nie domyślną.
+    expect(html, "opcja z adresu nie jest zaznaczona").toMatch(
+      /<option(?=[^>]*selected)(?=[^>]*value="price_asc")[^>]*>/,
+    );
+    expect(html, "porządek domyślny zaznaczony mimo ?sort=price_asc").not.toMatch(
+      /<option(?=[^>]*selected)(?=[^>]*value="name")[^>]*>/,
+    );
   }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------
@@ -361,12 +398,49 @@ describe("strona kategorii (ADR-247)", () => {
   // -------------------------------------------------------------------
   // 5. Szablon: nagłówek, okruszki, baner, opis
   // -------------------------------------------------------------------
-  it("nagłówek niesie DOKŁADNIE jedną nazwę kategorii jako h1 i okruszki", async () => {
+  it("nagłówek niesie DOKŁADNIE jedną nazwę kategorii jako h1, okruszki i licznik przy tytule", async () => {
     const html = await renderKategoria(SLUG);
     expect(html).toContain("data-category-breadcrumbs");
     expect(html).toMatch(/<h1[^>]*>Rowery<\/h1>/);
+    // [F9] JEDEN tytuł na stronie (S-36) — drugi h1 to regres potrójnego tytułu.
+    expect((html.match(/<h1[\s>]/g) ?? []).length, "strona ma więcej niż jeden h1").toBe(1);
+    // [F9] Licznik pozycji stoi W WIERSZU tytułu (data-category-count), z polską
+    // odmianą przez Intl.PluralRules — 51 pozycji, nie „Pozycji w kategorii: 51".
+    expect(html, "brak licznika pozycji przy tytule").toContain("data-category-count");
+    expect(html, "licznik nie odmienia liczebnika").toContain(`${POZYCJI} pozycji`);
     // BreadcrumbList (JSON-LD) obecny.
     expect(html).toContain("BreadcrumbList");
+  }, BUDZET_RENDERU);
+
+  it("toolbar listingu: pole szukania WIDOCZNE, celuje globalnie w katalog", async () => {
+    // [F9] Mandat właściciela: „search niewidoczny" — pole ma stać na stronie
+    // kategorii. Backend wyszukiwania jest globalny (ADR-263), więc formularz
+    // celuje w /katalog, a placeholder mówi to wprost.
+    const html = await renderKategoria(SLUG);
+    expect(html).toContain("data-listing-toolbar");
+    expect(html).toMatch(
+      /<form(?=[^>]*data-catalog-search)(?=[^>]*action="\/katalog")[^>]*>/,
+    );
+    expect(html, "placeholder nie mówi o zasięgu globalnym").toContain(
+      "Szukaj w całym katalogu…",
+    );
+  }, BUDZET_RENDERU);
+
+  it("siatka kategorii niesie klasę karty poziomej, a wspólny arkusz — jej reguły (F9)", async () => {
+    const html = await renderKategoria(SLUG);
+    // Strona pomiaru 1: klasa NA siatce listingu (nie na sekcjach strony głównej).
+    expect(html, "siatka listingu bez klasy karty poziomej").toMatch(
+      /<ul(?=[^>]*data-catalog-grid)(?=[^>]*site-listing-cards)[^>]*>/,
+    );
+    // Strona pomiaru 2: arkusz naprawdę definiuje układ poziomy w paśmie jednej
+    // kolumny — miniatura float + cena i CTA na pełnej szerokości (clear).
+    const sheet = readFileSync(
+      resolve(__dirname, "../../../packages/ui/src/site/site.css"),
+      "utf8",
+    );
+    expect(sheet).toMatch(/\.site-listing-cards > li > a > img[\s\S]{0,200}?float: left/);
+    expect(sheet).toMatch(/\.site-listing-cards \[data-products-price\][\s\S]{0,200}?clear: both/);
+    expect(sheet).toMatch(/\.site-listing-cards \[data-products-cta\][\s\S]{0,200}?clear: both/);
   }, BUDZET_RENDERU);
 
   it("landmark okruszków ma ODRĘBNĄ etykietę nawigacji, nie nazwę pozycji „Sklep”", async () => {

@@ -378,7 +378,12 @@ export function ProductTile({
         */}
         <SiteProductAvailabilityMark productId={product.id} className="site-availability mt-1" />
         {product.description ? (
-          <span className="site-text-muted mt-2 line-clamp-3 text-sm">{product.description}</span>
+          // Znacznik danych jak przy pozostałych polach kafla — arkusz listingu
+          // (F9, `.site-listing-cards` w site.css) adresuje opis po znaczniku,
+          // a nie po klasach utility, które zmieniają się z wyglądem.
+          <span data-products-description className="site-text-muted mt-2 line-clamp-3 text-sm">
+            {product.description}
+          </span>
         ) : null}
         <ProductFeatures features={features} />
         {/*

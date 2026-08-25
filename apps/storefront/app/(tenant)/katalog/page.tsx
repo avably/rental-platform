@@ -49,7 +49,7 @@ import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { storeLogo } from "@/lib/site/store-logo";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
-import { format } from "@/lib/storefront/copy";
+import { format, pluralCount } from "@/lib/storefront/copy";
 import { loadCatalogPageContext } from "@/lib/storefront/context";
 import { storeTermInput } from "@/lib/storefront/term-input";
 
@@ -196,11 +196,44 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
     >
       <main className={styles.section}>
         <div className={styles.container}>
-          {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
-          <h1 className={`text-3xl ${SITE_HEADING}`}>{copy.catalog.heading}</h1>
+          {/*
+            NAGŁÓWEK KOMPAKTOWY (F9) — licznik pozycji w JEDNYM wierszu z h1
+            (lustro strony kategorii), zamiast osobnego akapitu między polem
+            szukania a siatką. Przy aktywnym wyszukiwaniu wiersz niesie liczbę
+            wyników z frazą; przy PUSTYM wyniku licznika nie ma wcale, bo tę
+            samą informację mówi pełnym zdaniem komunikat pod toolbarem.
+          */}
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
+            <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
+              {copy.catalog.heading}
+            </h1>
+            {ctx.query.length > 0 && ctx.total === 0 ? null : (
+              <p data-catalog-count className="site-text-muted text-sm">
+                {"· "}
+                {ctx.query.length > 0
+                  ? format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })
+                  : pluralCount(ctx.total, locale, {
+                      one: copy.catalog.countOne,
+                      few: copy.catalog.countFew,
+                      many: copy.catalog.countMany,
+                    })}
+                {ctx.pageCount > 1
+                  ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
+                  : ""}
+              </p>
+            )}
+          </div>
 
-          {/* Pole wyszukiwania (ADR-263) — form GET → `?q=`, stan w adresie. */}
-          <CatalogSearch copy={copy} query={ctx.query} />
+          {/*
+            TOOLBAR LISTINGU (F9): pole wyszukiwania (ADR-263 — form GET →
+            `?q=`, stan w adresie) w jednym rzędzie; katalog nie ma przełącznika
+            sortowania, bo `get_public_catalog_page` nie przyjmuje porządku —
+            select bez skutku byłby kontrolką-atrapą (stan odnotowany w F9).
+          */}
+          <div data-listing-toolbar className="mt-6 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center">
+            <CatalogSearch copy={copy} query={ctx.query} />
+          </div>
 
           {ctx.query.length > 0 && ctx.total === 0 ? (
             /*
@@ -213,14 +246,6 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
             </p>
           ) : (
             <>
-              <p className="site-text-muted mt-4">
-                {ctx.query.length > 0
-                  ? format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })
-                  : format(copy.catalog.total, { total: ctx.total })}
-                {ctx.pageCount > 1
-                  ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
-                  : ""}
-              </p>
               <div className="mt-8">
                 <CatalogList
                   products={seam.products}

@@ -19,6 +19,7 @@
  * `catalogPagerItems` (ADR-186) — kategoria różni się tylko CELEM adresu, więc
  * to on jest parametrem, a nie druga kopia rachunku.
  */
+import { CATALOG_PATH_SEGMENT } from "@avably/core";
 import { ProductTile } from "@avably/ui";
 import type { ProductsStructuredContent } from "@avably/core/site";
 import type { SiteRenderLabels, StorefrontProduct, TemplateStyles } from "@avably/ui";
@@ -53,18 +54,51 @@ export function CategoryList({
     KATEGORIA PUSTA MÓWI WŁASNYM ZDANIEM, nie „katalog w przygotowaniu". To NIE
     jest 404 (ADR-244): kategoria istnieje, po prostu nie ma w niej jeszcze
     pozycji — treść pod istniejącym adresem, do którego prowadzą linki najemcy.
+
+    Od F9 stan pusty jest WYJŚCIEM, nie ślepym zaułkiem (spec: ikona + zdanie +
+    CTA): jedno zdanie prawdy i przycisk do pełnego katalogu, bo klient, który
+    tu trafił, szuka sprzętu — pusta półka bez drogi dalej gubi go w sklepie.
+    Ikona jest dekoracją (aria-hidden), zdanie niesie treść.
   */
   if (products.length === 0) {
     return (
-      <p data-category-empty className="site-text-muted mt-8">
-        {copy.category.empty}
-      </p>
+      <div data-category-empty className="mt-10 flex flex-col items-center gap-3 py-10 text-center">
+        <span
+          className="site-icon-tile site-text-accent flex size-11 items-center justify-center"
+          aria-hidden="true"
+        >
+          {/* Pusta skrzynia — inline, bo storefront nie zależy od pakietu ikon. */}
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+            <path d="M3 8v8l9 5 9-5V8" />
+            <path d="M12 13v8" />
+          </svg>
+        </span>
+        <p className="site-title text-lg">{copy.category.empty}</p>
+        <a
+          data-category-empty-cta
+          href={`/${CATALOG_PATH_SEGMENT}`}
+          className="site-cta mt-1 inline-flex h-11 items-center text-sm font-semibold"
+        >
+          {copy.category.emptyCta}
+        </a>
+      </div>
     );
   }
 
   return (
     <>
-      <ul data-catalog-grid className={`${styles.productGrid} list-none p-0`}>
+      {/* `site-listing-cards`: karta pozioma w 1-kolumnie (F9) — patrz site.css. */}
+      <ul data-catalog-grid className={`${styles.productGrid} site-listing-cards list-none p-0`}>
         {products.map((product, index) => (
           <ProductTile
             key={product.id}

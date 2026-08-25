@@ -69,7 +69,8 @@ export function CatalogList({
 
   return (
     <>
-      <ul data-catalog-grid className={`${styles.productGrid} list-none p-0`}>
+      {/* `site-listing-cards`: karta pozioma w 1-kolumnie (F9) — patrz site.css. */}
+      <ul data-catalog-grid className={`${styles.productGrid} site-listing-cards list-none p-0`}>
         {products.map((product, index) => (
           <ProductTile
             key={product.id}
