@@ -109,7 +109,25 @@ export function ProductDetail({
       {/* Treść + akcja */}
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className={`text-3xl tracking-tight ${SITE_HEADING}`}>{product.name}</h1>
+          {/*
+            NAZWA SPRZĘTU JEST NAJWIĘKSZYM NAPISEM NA TEJ STRONIE (S-24 audytu
+            2026-08-25).
+
+            Do tej poprawki `h1` stał na 30 px, a nagłówek sekcji szablonu POD
+            nim (`landing-heading`, clamp do 48 px) był o połowę większy —
+            czyli tytuł dokumentu przegrywał wizualnie z podtytułem treści,
+            którą operator dołożył pod spodem. Skala idzie w górę schodkami
+            kontenerowymi (ADR-085, nie `md:`), więc w kolumnie 375 px nazwa
+            zostaje czytelna, a na szerokim kontenerze dochodzi do góry skali.
+
+            SEKCJE SZABLONU ZOSTAJĄ BEZ ZMIAN — hierarchię naprawiamy podnosząc
+            tytuł, a nie przycinając treść najemcy.
+          */}
+          <h1
+            className={`text-3xl tracking-tight @min-[40rem]/site:text-4xl @min-[64rem]/site:text-5xl ${SITE_HEADING}`}
+          >
+            {product.name}
+          </h1>
           <p className="site-text-muted mt-2 text-lg">{product.basePriceLabel}</p>
           <p className="site-text-muted text-sm">
             {copy.product.depositLabel}: {product.depositFormatted}

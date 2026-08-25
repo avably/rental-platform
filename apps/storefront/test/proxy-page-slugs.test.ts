@@ -62,8 +62,14 @@ describe("adres strony → trasa wewnętrzna", () => {
 
   it("adres SPOZA rejestru dostaje neutralne 404, nie stronę i nie marketing", async () => {
     const response = await runProxy(request("https://alfa.avably.io/cennik"), deps);
+    const body = await response.text();
+
     expect(response.status).toBe(404);
-    expect(await response.text()).toBe("Not Found");
+    // Odmowa jest od S-14 dokumentem HTML (patrz `neutralNotFound`), ale dalej
+    // NEUTRALNYM: ani nazwy najemcy, ani marki, ani rewrite'u na stronę.
+    expect(rewrittenTo(response), "odmowa przepuściła adres na trasę").toBeNull();
+    expect(body.toLowerCase()).not.toContain("alfa");
+    expect(body.toLowerCase()).not.toContain("avably");
   });
 
   it("adres o niepoprawnym kształcie nie rusza bazy ani razu", async () => {

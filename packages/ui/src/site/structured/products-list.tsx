@@ -33,11 +33,14 @@ export function StructuredProductsList({
   styles,
   labels,
   products = [],
+  imagePriority = false,
 }: {
   content: ProductsStructuredContent;
   styles: TemplateStyles;
   labels: SiteRenderLabels;
   products?: StorefrontProduct[];
+  /** Czy TA sekcja niesie pierwszy obraz strony (S-39) — patrz `../image-priority`. */
+  imagePriority?: boolean;
 }) {
   const visible = visibleProductsFor(content, products);
 
@@ -71,7 +74,8 @@ export function StructuredProductsList({
                     src={product.imageUrl}
                     alt={productImageAlt(product)}
                     className="size-20 shrink-0 rounded-md object-cover"
-                    loading={index === 0 ? "eager" : "lazy"}
+                    loading={imagePriority && index === 0 ? "eager" : "lazy"}
+                    fetchPriority={imagePriority && index === 0 ? "high" : undefined}
                   />
                 ) : (
                   <div className="site-placeholder size-20 shrink-0 rounded-md" aria-hidden="true" />

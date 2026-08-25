@@ -25,11 +25,14 @@ export function StructuredCategoriesGrid({
   styles,
   labels,
   categories = [],
+  imagePriority = false,
 }: {
   content: CategoriesStructuredContent;
   styles: TemplateStyles;
   labels: SiteRenderLabels;
   categories?: StorefrontCategory[];
+  /** Czy TA sekcja niesie pierwszy obraz strony (S-39) — patrz `../image-priority`. */
+  imagePriority?: boolean;
 }) {
   const visible = visibleCategoriesFor(content, categories);
 
@@ -49,7 +52,7 @@ export function StructuredCategoriesGrid({
             <CategoryTile
               key={category.id}
               category={category}
-              eager={index === 0}
+              eager={imagePriority && index === 0}
               styles={styles}
             />
           ))}

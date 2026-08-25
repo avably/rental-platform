@@ -23,11 +23,14 @@ export function StructuredProductsGrid({
   styles,
   labels,
   products = [],
+  imagePriority = false,
 }: {
   content: ProductsStructuredContent;
   styles: TemplateStyles;
   labels: SiteRenderLabels;
   products?: StorefrontProduct[];
+  /** Czy TA sekcja niesie pierwszy obraz strony (S-39) — patrz `../image-priority`. */
+  imagePriority?: boolean;
 }) {
   const visible = visibleProductsFor(content, products);
 
@@ -48,7 +51,7 @@ export function StructuredProductsGrid({
               key={product.id}
               content={content}
               product={product}
-              eager={index === 0}
+              eager={imagePriority && index === 0}
               styles={styles}
               labels={labels}
             />

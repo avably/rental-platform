@@ -297,6 +297,7 @@ function ElementBody({
   siteImageBase,
   bindings,
   currentPath,
+  priority = false,
 }: {
   element: CanvasElement;
   size: ElementSize;
@@ -308,6 +309,13 @@ function ElementBody({
   bindings: ElementBindingResult;
   /** Publiczna ścieżka bieżącej strony (S-52) — patrz `SectionCanvasRenderer`. */
   currentPath?: string;
+  /**
+   * Czy TEN element jest pierwszym obrazem strony (S-39 audytu 2026-08-25) —
+   * rozstrzyga `SectionCanvasRenderer` z odpowiedzi renderera o całej stronie.
+   * Do tej poprawki KAŻDY obraz płótna był `loading="lazy"`, także zdjęcie hero
+   * nad zgięciem: element LCP startował dopiero po pierwszym malowaniu.
+   */
+  priority?: boolean;
 }) {
   const fill = fillClass(size);
   const type = typeClass(element);
@@ -404,7 +412,8 @@ function ElementBody({
             src={bound.url}
             alt={bound.alt}
             className={cn("site-media size-full", objectFit)}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
           />
         );
       }
@@ -415,7 +424,13 @@ function ElementBody({
         // kopiujemy go do naszego bucketa).
         return (
           <span className="site-media relative block size-full overflow-hidden">
-            <img src={source.url} alt={element.alt} className={cn("size-full", objectFit)} loading="lazy" />
+            <img
+              src={source.url}
+              alt={element.alt}
+              className={cn("size-full", objectFit)}
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : undefined}
+            />
             <span
               data-image-credit
               className="site-scrim site-text-inverted absolute inset-x-0 bottom-0 px-2 py-1 text-[11px] leading-4"
@@ -432,7 +447,8 @@ function ElementBody({
           src={siteImageUrl(siteImageBase, source.path)}
           alt={element.alt}
           className={cn("site-media size-full", objectFit)}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : undefined}
         />
       ) : (
         // Bez ścieżki (albo bez bazy URL — podgląd bez Storage) element zostaje
@@ -550,6 +566,7 @@ export function SectionCanvasRenderer({
   as = "section",
   mark = null,
   currentPath,
+  imagePriority = false,
 }: {
   canvas: SectionCanvas;
   styles: TemplateStyles;
@@ -602,6 +619,15 @@ export function SectionCanvasRenderer({
    * wyłącznie sklep; płótno kreatora i podgląd nie podają nic.
    */
   currentPath?: string;
+  /**
+   * CZY TA SEKCJA NIESIE PIERWSZY OBRAZ STRONY (S-39 audytu 2026-08-25).
+   *
+   * Rozstrzyga renderer strony (`../image-priority`), bo „pierwsza" jest
+   * własnością całej listy sekcji. Płótno zamienia tę odpowiedź na wskazanie
+   * KONKRETNEGO elementu — pierwszego obrazu w kolejności malowania — bo sekcja
+   * bywa kolażem kilku zdjęć, a priorytet ma dostać dokładnie jedno.
+   */
+  imagePriority?: boolean;
 }) {
   /*
    * WIĄZANIA ROZWIĄZANE RAZ, PRZED ZBUDOWANIEM DRZEWA (faza 3, ADR-163).
@@ -623,6 +649,20 @@ export function SectionCanvasRenderer({
   const bleeding = paintOrder(canvas.elements).filter(
     (element) => bleedsToEdges(element) && !isCut(element),
   );
+
+  /*
+   * PIERWSZY OBRAZ TEJ SEKCJI (S-39) — w KOLEJNOŚCI MALOWANIA, czyli w tej
+   * samej, w której przeglądarka układa warstwy. W sekcji hero to zdjęcie tła
+   * (najniższy `z`), a nie ikonka doklejona nad nim — a właśnie zdjęcie tła
+   * jest tam elementem LCP. Węzeł wycięty wiązaniem nie maluje się wcale, więc
+   * nie ma po co dawać mu priorytetu.
+   */
+  const priorityElementId = imagePriority
+    ? (paintOrder(canvas.elements).find(
+        (element) => element.kind === "image" && !isCut(element),
+      )?.id ?? null)
+    : null;
+
   const Shell = as;
 
   return (
@@ -668,6 +708,7 @@ export function SectionCanvasRenderer({
                 siteImageBase={siteImageBase}
                 bindings={bindingsOf(element)}
                 currentPath={currentPath}
+                priority={element.id === priorityElementId}
               />
             </div>
           ))}
@@ -771,6 +812,7 @@ export function SectionCanvasRenderer({
                 siteImageBase={siteImageBase}
                 bindings={bindingsOf(element)}
                 currentPath={currentPath}
+                priority={element.id === priorityElementId}
               />
             </div>
           );

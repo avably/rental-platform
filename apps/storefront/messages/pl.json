@@ -511,7 +511,11 @@
       "addToCart": "Dodaj do koszyka",
       "added": "Dodano do koszyka",
       "goToCart": "Przejdź do koszyka",
-      "notFound": "Nie znaleziono produktu."
+      "notFound": "Nie znaleziono produktu.",
+      "benefitTier": "Taniej od {days} dni: −{percent}%",
+      "benefitDeposit": "Kaucja zwrotna: {amount}",
+      "cartAlready": "W koszyku masz już {inCart} z {available} dostępnych.",
+      "benefitsLabel": "Co obejmuje ta rezerwacja"
     },
     "cart": {
       "title": "Koszyk",

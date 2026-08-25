@@ -11,6 +11,7 @@
  * i18n: język i copy z osi tenanckiej (tenants.locale), nie z URL — patrz
  * lib/storefront/context.ts.
  */
+import { catalogPagePath } from "@avably/core";
 import { HOME_PAGE_SLUG, faqPageJsonLd, pagePathFromSlug } from "@avably/core/site";
 import { SiteRenderer } from "@avably/ui";
 import type { Metadata } from "next";
@@ -20,7 +21,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { categoryNavItems } from "@/lib/catalog/category-nav";
-import { pageSections } from "@/lib/site/page-sections";
+import { pageSections, withCatalogFallbackAnchors } from "@/lib/site/page-sections";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -118,7 +119,13 @@ export default async function TenantStorePage() {
    * odpowiedź na pytanie „czy strona jest pusta": strona z samą stopką nie ma
    * do pokazania NIC i ma dostać ekran „sklep w budowie", a nie pusty `<main>`.
    */
-  const bodySections = pageSections(site);
+  /*
+    KOTWICA BEZ CELU → KATALOG (S-10 audytu 2026-08-25). Przycisk hero
+    z presetu prowadzi na `#produkty`; strona bez sekcji sprzętu nie ma tej
+    kotwicy, więc klik nie robił NIC. Przekształcenie renderu, nie danych —
+    patrz `withCatalogFallbackAnchors`.
+  */
+  const bodySections = withCatalogFallbackAnchors(pageSections(site), catalogPagePath());
 
   // Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). Sekcja hero go
   // niesie; układ bez hero zostawiłby stronę bez nagłówka pierwszego poziomu,

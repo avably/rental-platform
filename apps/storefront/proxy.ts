@@ -162,6 +162,43 @@ function cspOptions(): CspOptions {
 }
 
 /**
+ * JĘZYK NEUTRALNEJ ODMOWY — z `Accept-Language` PRZEGLĄDARKI, i tylko stąd
+ * (S-14 audytu 2026-08-25).
+ *
+ * To jest jedyne źródło, które NICZEGO nie zdradza: nagłówek przynosi ze sobą
+ * sam odwiedzający, więc odpowiedź dalej nie zależy od tego, czy pod adresem
+ * stoi jakikolwiek najemca i w jakim jest stanie (warunek nierozróżnialności
+ * z ADR-131). Osi tenanckiej nie pytamy — tu jeszcze nie ma tenanta, a gdyby
+ * był, jego język byłby wyrocznią.
+ *
+ * Dopasowanie jest po PREFIKSIE podstawowego tagu (`pl-PL` → `pl`), bez wag
+ * `q`: kolejność wpisów w nagłówku to preferencja malejąca i dla dwóch języków
+ * pełny parser nie zmienia ani jednego wyniku. Brak nagłówka i język spoza
+ * listy → domyślny locale platformy.
+ */
+export function neutralNotFoundLocale(acceptLanguage: string | null): string {
+  for (const entry of (acceptLanguage ?? "").split(",")) {
+    const tag = entry.split(";")[0]?.trim().toLowerCase() ?? "";
+    if (!tag) continue;
+    const base = tag.split("-")[0] ?? "";
+    const hit = (LOCALES as readonly string[]).find((locale) => locale === base);
+    if (hit) return hit;
+  }
+  return routing.defaultLocale;
+}
+
+/**
+ * Treść neutralnej odmowy w obu językach. Świadomie BEZ nazwy platformy,
+ * bez nazwy najemcy, bez odnośnika dokądkolwiek: dokument stoi pod adresem,
+ * który do nas nie należy (obca domena, cudza subdomena), a każdy odnośnik
+ * byłby reklamą pod cudzym adresem — dokładnie tym, co ADR-131 zamyka.
+ */
+const NOT_FOUND_COPY: Record<string, { title: string; lead: string }> = {
+  pl: { title: "Nie znaleziono strony", lead: "Sprawdź adres i spróbuj ponownie." },
+  en: { title: "Page not found", lead: "Check the address and try again." },
+};
+
+/**
  * JEDYNA odmowa storefrontu — neutralne 404 z nagłówkami bezpieczeństwa.
  *
  * Nie ujawnia, czy tenant istnieje: identyczna dla nieistniejącego,
@@ -170,16 +207,66 @@ function cspOptions(): CspOptions {
  * domena jeszcze niezweryfikowana). Obie osie hostów wołają tę funkcję, więc
  * nierozróżnialność wynika z BUDOWY, a nie z pilnowania dwóch kopii.
  *
- * Co widzi człowiek: `404 Not Found`, `text/plain`, treść `Not Found` —
- * ani znaku Avably, ani i18n, ani śladu, że pod adresem cokolwiek kiedyś było.
- * Rozważone i odrzucone: 403 (mówi „istnieje, ale nie dla ciebie"), 410 (mówi
- * „było i zniknęło") i strona HTML z brandingiem (każdy z nich jest wyrocznią
- * albo reklamą pod cudzym adresem). Uzasadnienie pełne: ADR-131.
+ * ==================== DLACZEGO JUŻ NIE `text/plain` (S-14) ====================
+ *
+ * Do tej poprawki odmowa była dziewięcioma bajtami `Not Found` w `text/plain`.
+ * Nierozróżnialność to dawało, ale CZŁOWIEKOWI dawało ekran zepsuty: dokument
+ * bez `<meta name="viewport">` renderuje się na telefonie w skali strony
+ * desktopowej, więc jedyne zdanie na ekranie jest mikrodrukiem, którego nie da
+ * się przeczytać. Do tego bez `<title>` karta przeglądarki i zakładka pokazują
+ * goły adres (WCAG 2.4.2), a klient, który trafił tu ze starego linku, nie ma
+ * jak zrozumieć, co się stało.
+ *
+ * ZMIENIA SIĘ WYŁĄCZNIE FORMA, NIE INFORMACJA. Dokument jest dalej JEDNĄ
+ * odpowiedzią dla wszystkich powodów odmowy, dalej nie niesie ani znaku
+ * Avably, ani nazwy najemcy, ani śladu, że pod adresem kiedykolwiek coś stało
+ * — a jego jedyną zmienną jest język wzięty z nagłówka przeglądarki
+ * (patrz `neutralNotFoundLocale`), czyli z danych, które przyniósł sam
+ * odwiedzający. Rozważone i odrzucone dalej: 403 (mówi „istnieje, ale nie dla
+ * ciebie"), 410 („było i zniknęło") i strona z brandingiem (wyrocznia albo
+ * reklama pod cudzym adresem). Uzasadnienie pełne: ADR-131.
+ *
+ * Ostylowana strona 404 ROUTERA sklepu (`app/(tenant)/not-found.tsx`) to
+ * osobny ekran i zostaje bez zmian: tam tenant JEST rozwiązany, więc motyw
+ * i wyjście do katalogu niczego nie zdradzają.
+ *
+ * `<style>` inline zamiast arkusza: middleware nie ma jak podać adresu pliku,
+ * który przetrwa deploy, a polityka i tak dopuszcza style inline
+ * (`style-src 'unsafe-inline'` w @avably/security). Skryptu nie ma ani jednego.
  */
-function neutralNotFound(nonce: string, csp: CspOptions): NextResponse {
-  const response = new NextResponse("Not Found", {
+function neutralNotFound(nonce: string, csp: CspOptions, request: NextRequest): NextResponse {
+  const locale = neutralNotFoundLocale(request.headers.get("accept-language"));
+  const copy = NOT_FOUND_COPY[locale] ?? NOT_FOUND_COPY.en!;
+
+  const body = `<!doctype html>
+<html lang="${locale}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>${copy.title}</title>
+<style>
+:root { color-scheme: light dark; }
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.5; }
+main { max-width: 28rem; }
+p.code { margin: 0 0 .5rem; font-size: 1.5rem; font-weight: 600; opacity: .55; font-variant-numeric: tabular-nums; }
+h1 { margin: 0 0 .5rem; font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em; }
+p.lead { margin: 0; opacity: .7; }
+</style>
+</head>
+<body>
+<main>
+<p class="code">404</p>
+<h1>${copy.title}</h1>
+<p class="lead">${copy.lead}</p>
+</main>
+</body>
+</html>
+`;
+
+  const response = new NextResponse(body, {
     status: 404,
-    headers: { "content-type": "text/plain; charset=utf-8" },
+    headers: { "content-type": "text/html; charset=utf-8" },
   });
   return applySecurityHeaders(response, nonce, csp);
 }
@@ -281,7 +368,7 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
      * `app/[locale]` renderuje się wyłącznie dla `hasLocale(LOCALES, …)`, więc
      * odcięcie LOCALES odcina całą gałąź.
      */
-    if ((LOCALES as readonly string[]).includes(first)) return neutralNotFound(nonce, csp);
+    if ((LOCALES as readonly string[]).includes(first)) return neutralNotFound(nonce, csp, request);
 
     /*
      * (3) TRASA WEWNĘTRZNA NIE JEST ADRESEM PUBLICZNYM. Cel rewrite'u stron
@@ -311,7 +398,7 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
         target.pathname = "/";
         return applySecurityHeaders(NextResponse.redirect(target, 308), nonce, csp);
       }
-      return pathname === "/store/og" ? passThrough() : neutralNotFound(nonce, csp);
+      return pathname === "/store/og" ? passThrough() : neutralNotFound(nonce, csp, request);
     }
 
     // (4) Pozostałe trasy sklepu (koszyk, kasa, produkt, dokumenty, embed)
@@ -322,7 +409,7 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
     // (5) Kształt odrzucamy BEZ podróży do bazy. Ścieżka wielosegmentowa pod
     // nieznanym korzeniem też: strony treściowe są w Fazie 2 jednopoziomowe.
     if (!isValidPageSlug(first) || pathname !== `/${first}`) {
-      return neutralNotFound(nonce, csp);
+      return neutralNotFound(nonce, csp, request);
     }
 
     // (6) REJESTR ADRESÓW — jedna podróż, z której wychodzi i strona, i
@@ -339,18 +426,18 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
       return applySecurityHeaders(NextResponse.redirect(target, 308), nonce, csp);
     }
 
-    return neutralNotFound(nonce, csp);
+    return neutralNotFound(nonce, csp, request);
   };
 
   if (classification.kind === "tenant") {
     const resolved = await deps.resolveTenant(host, classification.slug);
-    if (!resolved) return neutralNotFound(nonce, csp);
+    if (!resolved) return neutralNotFound(nonce, csp, request);
 
     return tenantBranch(resolved.tenantId, classification.slug);
   }
 
   if (classification.kind === "not-found") {
-    return neutralNotFound(nonce, csp);
+    return neutralNotFound(nonce, csp, request);
   }
 
   /*
@@ -390,7 +477,7 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
    */
   if (classification.kind === "foreign") {
     const resolved = await deps.resolveTenantByDomain(classification.host);
-    if (!resolved) return neutralNotFound(nonce, csp);
+    if (!resolved) return neutralNotFound(nonce, csp, request);
 
     return tenantBranch(resolved.tenantId);
   }

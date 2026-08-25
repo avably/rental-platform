@@ -75,9 +75,34 @@ export function clampDescription(text: string, max = 160): string {
   return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
-/** Tytuł podstrony: „{strona} — {sklep}”; sam sklep, gdy to jego strona główna. */
+/**
+ * TYTUŁ DOKUMENTU: „{tytuł strony} · {nazwa sklepu}”; sam sklep na jego stronie
+ * głównej (S-31 audytu 2026-08-25).
+ *
+ * ==================== CO SIĘ ZMIENIŁO, A CO NIE ====================
+ *
+ * TOŻSAMOŚĆ BYŁA I JEST POPRAWNA. Audyt zgłosił „szablon tytułu używa slugu
+ * subdomeny (…- godekmaciej)", ale render nigdy nie sięgał po slug: `storeName`
+ * przychodzi z `tenants.name`, czyli z pola, które operator wpisuje w
+ * zakładaniu organizacji OBOK slugu (`/organizacja/nowa` → `app.create_tenant`
+ * przyjmuje `name` i `slug` osobno). Audytowany sklep ma po prostu NAZWĘ równą
+ * swojemu uchwytowi. Innego źródła nazwy sklepu w danych nie ma:
+ * `getTenantAppearance` niesie motyw i znak, a `tenants.legal_name` (0096) to
+ * nazwa Z REJESTRU do faktur i umów — wystawienie jej w tytule sklepu
+ * podmieniłoby markę na formę prawną („Jan Kowalski FHU"), czyli pogorszyło
+ * dokładnie to, o co w tym zgłoszeniu chodzi. Fallbacku na slug też nie ma po
+ * co budować: `tenants.name` jest NOT NULL.
+ *
+ * ZMIENIA SIĘ SEPARATOR: dywiz `-` był tu jedynym miejscem ścieżki sklepu,
+ * które po F5 (typografia — pauzy zamiast dywizów) zostało przy znaku
+ * łącznika. Kropka środkowa jest tym samym separatorem, którym ta ścieżka
+ * rozdziela człony wszędzie indziej (`formatRentalRange`, licznik kategorii),
+ * i nie myli się z dywizem w nazwie własnej („Sprzęt Bud-Mar").
+ */
+export const TITLE_SEPARATOR = " · ";
+
 export function pageTitle(storeName: string, pageName?: string): string {
-  return pageName ? `${pageName} - ${storeName}` : storeName;
+  return pageName ? `${pageName}${TITLE_SEPARATOR}${storeName}` : storeName;
 }
 
 export interface TenantMetadataInput {
