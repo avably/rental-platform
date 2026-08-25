@@ -1,6 +1,7 @@
 import type { TestimonialsStructuredItem } from "@avably/core/site";
 
 import { cn } from "../../lib/cn";
+import { bindOrphans } from "../orphans";
 
 /**
  * WSPÓLNY KAFEL OPINII (E6, aneks ADR-094).
@@ -30,7 +31,7 @@ export function TestimonialCard({
   return (
     <figure {...rest} className={cn("site-card m-0 flex flex-col gap-4 p-5", className)}>
       <blockquote data-testimonial-quote className="site-title text-base font-normal break-words">
-        {item.quote}
+        {bindOrphans(item.quote)}
       </blockquote>
       {/*
         Podpis dosuwamy do DOŁU kafla (`mt-auto`): w rzędzie kafli o różnej

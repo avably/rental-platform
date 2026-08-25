@@ -10,7 +10,7 @@
  * Host challenges.cloudflare.com w script-src to fallback dla przeglądarek
  * CSP2 — dyrektywa wchodzi tylko przy skonfigurowanym site key.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TurnstileApi {
   render: (
@@ -68,15 +68,71 @@ export interface TurnstileWidgetProps {
   size?: "normal" | "compact";
 }
 
+/**
+ * CZY WIDGET COKOLWIEK POKAZUJE (S-33, audyt UX 2026-08-25).
+ *
+ * Widget w trybie niewidzialnym / interaction-only wstawia ramkę, którą sam
+ * chowa INLINE'OWYM stylem (`display:none` / `visibility:hidden`) albo zerowym
+ * rozmiarem — a jej pudełko i tak rezerwowało ~72 px między polem wiadomości
+ * a przyciskiem, więc formularz wyglądał na rozerwany. Czytamy WYŁĄCZNIE
+ * inline'owe deklaracje dostawcy (styl i atrybuty ramki oraz jej owijek do
+ * kontenera włącznie), bo te nie zależą od tego, że NASZ kontener jest akurat
+ * schowany — `offsetHeight` mierzony pod `display:none` kłamałby zawsze zero
+ * i kontener nie miałby jak się odsłonić.
+ */
+function turnstileShowsContent(container: HTMLElement): boolean {
+  for (const frame of container.querySelectorAll("iframe")) {
+    const width = frame.getAttribute("width");
+    const height = frame.getAttribute("height");
+    if (width !== null && Number(width) === 0) continue;
+    if (height !== null && Number(height) === 0) continue;
+    let hidden = false;
+    for (let node: HTMLElement | null = frame; node && node !== container; node = node.parentElement) {
+      if (node.style.display === "none" || node.style.visibility === "hidden") {
+        hidden = true;
+        break;
+      }
+    }
+    if (!hidden) return true;
+  }
+  return false;
+}
+
 export function TurnstileWidget({ siteKey, locale, onToken, size = "normal" }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Ref zamiast zależności efektu renderującego: zmiana handlera nie ma prawa
   // przeładować widgetu (remount = nowe wyzwanie dla użytkownika).
   const onTokenRef = useRef(onToken);
+  /*
+   * KONTENER NIE REZERWUJE MIEJSCA, dopóki dostawca czegoś nie pokaże (S-33):
+   * start w `hidden`, odsłona dopiero gdy w środku stoi ramka bez inline'owego
+   * ukrycia. Obserwator mutacji łapie i wstawienie ramki, i późniejszą zmianę
+   * jej stylu (interaction-only pokazuje wyzwanie dopiero, gdy musi) — więc
+   * wyzwanie interaktywne dostaje swoje miejsce w chwili, w której realnie
+   * powstaje, a tryb niewidzialny nie zostawia dziury. Powierzchnie, które
+   * CHCĄ rezerwy pod widget widoczny (checkout), trzymają ją na SWOIM slocie
+   * (`min-h` na `data-checkout-captcha`) — to decyzja miejsca, nie widgetu.
+   */
+  const [showsContent, setShowsContent] = useState(false);
 
   useEffect(() => {
     onTokenRef.current = onToken;
   }, [onToken]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const update = () => setShowsContent(turnstileShowsContent(container));
+    const observer = new MutationObserver(update);
+    observer.observe(container, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "width", "height", "hidden"],
+    });
+    update();
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,5 +156,5 @@ export function TurnstileWidget({ siteKey, locale, onToken, size = "normal" }: T
     };
   }, [siteKey, locale, size]);
 
-  return <div ref={containerRef} />;
+  return <div ref={containerRef} data-turnstile-container hidden={!showsContent} />;
 }

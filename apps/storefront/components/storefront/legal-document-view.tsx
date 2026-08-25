@@ -88,8 +88,19 @@ export function LegalDocumentView({
         ))}
       </div>
 
-      <p className="site-rule-top mt-8 pt-4 font-mono text-xs opacity-60">
+      {/*
+        SUMA KONTROLNA Z WYJAŚNIENIEM (S-56, audyt UX 2026-08-25). Goły hex
+        czytał się jak artefakt techniczny — zdanie obok mówi, PO CO on jest:
+        to odcisk tej wersji dokumentu. Wyjaśnienie stoi w DOKUMENCIE, nie
+        tylko w `title` — dymek nie istnieje na ekranie dotykowym, a czytnik
+        ekranu nie ma obowiązku go czytać; `title` zostaje jako skrót dla
+        wskazującej myszy.
+      */}
+      <p className="site-rule-top mt-8 pt-4 font-mono text-xs opacity-60" title={copy.legal.checksumHint}>
         {copy.legal.checksum}: {sha256.slice(0, 16)}
+      </p>
+      <p data-legal-checksum-hint className="mt-1 text-xs opacity-60">
+        {copy.legal.checksumHint}
       </p>
     </article>
   );

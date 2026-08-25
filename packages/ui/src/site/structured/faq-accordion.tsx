@@ -4,6 +4,7 @@ import type { FaqStructuredContent } from "@avably/core/site";
 import { useId, useState } from "react";
 
 import { cn } from "../../lib/cn";
+import { bindOrphans } from "../orphans";
 import { SafeRichText } from "../rich-text";
 import type { TemplateStyles } from "../template";
 import { StructuredSectionShell } from "./shell";
@@ -89,7 +90,7 @@ export function StructuredFaqAccordion({
                     "flex w-full items-center justify-between gap-4 text-left",
                   )}
                 >
-                  <span>{item.q}</span>
+                  <span>{bindOrphans(item.q)}</span>
                   {/* Znak stanu jest DEKORACJĄ — stan niesie `aria-expanded`,
                       więc czytnik nie usłyszy „plus” zamiast „zwinięte”. */}
                   <span aria-hidden="true" className="shrink-0 text-2xl leading-none font-normal">

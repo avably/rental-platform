@@ -1,6 +1,7 @@
 import type { CtaStructuredContent } from "@avably/core/site";
 
 import { cn } from "../../lib/cn";
+import { bindOrphans } from "../orphans";
 import type { TemplateStyles } from "../template";
 import { CtaButtons, ctaSurfaceOf } from "./cta-shared";
 import { StructuredSectionShell } from "./shell";
@@ -39,12 +40,12 @@ export function StructuredCtaSplit({
         <div className="flex min-w-0 flex-col gap-3">
           {content.heading ? (
             <h2 data-cta-heading className={cn(styles.sectionHeading, "mt-0")}>
-              {content.heading}
+              {bindOrphans(content.heading)}
             </h2>
           ) : null}
           {content.text ? (
             <p data-cta-text className={cn("max-w-2xl", surface.text)}>
-              {content.text}
+              {bindOrphans(content.text)}
             </p>
           ) : null}
         </div>

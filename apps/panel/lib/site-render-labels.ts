@@ -90,6 +90,7 @@ export function siteRenderLabels(locale: TenantSiteLocale): SiteRenderLabels {
     galleryPrev: source.galleryPrev,
     galleryNext: source.galleryNext,
     galleryPosition: source.galleryPosition,
+    galleryCredit: source.galleryCredit,
     contactHours: source.contactHours,
     contactForm: source.contactForm,
     pricingFrom: source.pricingFrom,

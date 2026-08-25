@@ -37,6 +37,13 @@ const HOME_ID = "88888888-8888-4888-8888-888888888888";
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
 const STORE_NAME = "Wypożyczalnia Kontrolna";
 const NAZWA_W_STOPCE_GLOWNEJ = "Stopka Strony Glownej sp. z o.o.";
+
+/**
+ * S-47 (audyt 2026-08-25): render wiąże jednoliterowe spójniki twardą spacją
+ * (U+00A0) — „sp. z o.o." niesie ją po „z". Do porównań z fiksturami wracamy
+ * do zwykłych spacji, żeby positive I NEGATIVE asercje dalej trafiały w tekst.
+ */
+const bezTwardychSpacji = (text: string | null): string => (text ?? "").replace(/\u00A0/g, " ");
 const NAZWA_W_STOPCE_PODSTRONY = "Stopka Podstrony Ktorej Nikt Nie Zobaczy";
 const BAZA_ZDJEC = "https://storage.local/site-images";
 const SCIEZKA_OBRAZU = `${TENANT_ID}/sekcje/stopka.png`;
@@ -301,11 +308,12 @@ describe("stopka podglądu pochodzi ze strony GŁÓWNEJ", () => {
     ];
     const container = await renderPreview();
 
-    expect(container.textContent, "podgląd nie pokazuje stopki, którą zobaczy klient").toContain(
-      NAZWA_W_STOPCE_GLOWNEJ,
-    );
     expect(
-      container.textContent,
+      bezTwardychSpacji(container.textContent),
+      "podgląd nie pokazuje stopki, którą zobaczy klient",
+    ).toContain(NAZWA_W_STOPCE_GLOWNEJ);
+    expect(
+      bezTwardychSpacji(container.textContent),
       "podgląd pokazuje stopkę podstrony, której sklep NIGDY nie wyrenderuje",
     ).not.toContain(NAZWA_W_STOPCE_PODSTRONY);
     // Jedna stopka, jeden landmark `contentinfo` — jak w sklepie.
@@ -342,7 +350,7 @@ describe("stopka podglądu pochodzi ze strony GŁÓWNEJ", () => {
     ];
     const container = await renderPreview();
     expect(container.querySelector("[data-preview-footer-shadowed]")).toBeNull();
-    expect(container.textContent).toContain(NAZWA_W_STOPCE_GLOWNEJ);
+    expect(bezTwardychSpacji(container.textContent)).toContain(NAZWA_W_STOPCE_GLOWNEJ);
   });
 
   it("STRONA GŁÓWNA: stopka jest jej własna i nie ma o czym ostrzegać", async () => {
@@ -357,7 +365,7 @@ describe("stopka podglądu pochodzi ze strony GŁÓWNEJ", () => {
       ),
     ];
     const container = await renderPreview();
-    expect(container.textContent).toContain(NAZWA_W_STOPCE_GLOWNEJ);
+    expect(bezTwardychSpacji(container.textContent)).toContain(NAZWA_W_STOPCE_GLOWNEJ);
     expect(container.querySelector("[data-preview-footer-shadowed]")).toBeNull();
     expect(container.querySelectorAll("footer")).toHaveLength(1);
   });
@@ -386,7 +394,7 @@ describe("stopka podglądu pochodzi ze strony GŁÓWNEJ", () => {
     const main = container.querySelector("main");
     expect(main, "render bez `<main>` — asercja byłaby po pustym zbiorze").not.toBeNull();
     expect(main!.querySelector("footer")).toBeNull();
-    expect(main!.textContent).not.toContain(NAZWA_W_STOPCE_GLOWNEJ);
+    expect(bezTwardychSpacji(main!.textContent)).not.toContain(NAZWA_W_STOPCE_GLOWNEJ);
   });
 });
 

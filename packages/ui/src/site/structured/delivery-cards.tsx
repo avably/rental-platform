@@ -1,6 +1,7 @@
 import { deliveryPriceLabel, type DeliveryStructuredContent } from "@avably/core/site";
 
 import { cn } from "../../lib/cn";
+import { bindOrphans } from "../orphans";
 import type { TemplateStyles } from "../template";
 import type { SiteMoney } from "../types";
 import { AUTO_LAYOUT_CLASS, autoLayoutStyle } from "./auto-layout";
@@ -41,7 +42,7 @@ export function StructuredDeliveryCards({
     >
       {content.intro ? (
         <p data-delivery-intro className={styles.lead}>
-          {content.intro}
+          {bindOrphans(content.intro)}
         </p>
       ) : null}
 
@@ -55,7 +56,7 @@ export function StructuredDeliveryCards({
           return (
             <li key={index} data-delivery-card={index} className="site-card flex flex-col gap-2 p-5">
               <h3 data-delivery-title className={styles.cardTitle}>
-                {item.title}
+                {bindOrphans(item.title)}
               </h3>
               {price ? (
                 <span data-delivery-price className="site-text-accent site-numeric text-lg">
@@ -63,7 +64,7 @@ export function StructuredDeliveryCards({
                 </span>
               ) : null}
               <p data-delivery-text className="site-text-muted text-sm">
-                {item.text}
+                {bindOrphans(item.text)}
               </p>
             </li>
           );

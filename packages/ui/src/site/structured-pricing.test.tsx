@@ -71,7 +71,8 @@ function pozycje(ile: number): PricingStructuredItem[] {
 describe("KWOTA idzie przez formatter projektu, nie przez dzielenie przez sto", () => {
   it("PLN/pl: zapis polski — przecinek dziesiętny i symbol po kwocie", () => {
     pokaz(cennik({ items: [{ name: "Namiot", price_grosze: 129_950, unit: "day", mode: "exact" }] }));
-    const cena = screen.getByText(/129/);
+    // S-48a: separator tysięcy od 4 cyfr — „1 299,50” nie zawiera ciągu „129”.
+    const cena = screen.getByText(/299/);
 
     /*
      * Sedno: mutacja „price_grosze / 100 + ' zł'” dałaby tu „1299.5 zł”.

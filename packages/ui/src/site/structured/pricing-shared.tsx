@@ -6,6 +6,7 @@ import {
 } from "@avably/core/site";
 
 import { cn } from "../../lib/cn";
+import { bindOrphans } from "../orphans";
 import type { SiteMoney, SiteRenderLabels } from "../types";
 
 /**
@@ -58,7 +59,7 @@ export function PricingFooter({
     <div className="mt-6 flex flex-col gap-3">
       {content.footnote ? (
         <p data-pricing-footnote className="site-text-muted text-sm">
-          {content.footnote}
+          {bindOrphans(content.footnote)}
         </p>
       ) : null}
       {content.showCatalogLink ? (
@@ -81,7 +82,7 @@ export function PricingItemNote({ item, className }: { item: PricingStructuredIt
   if (!item.note) return null;
   return (
     <span data-pricing-item-note className={cn("site-text-muted text-sm", className)}>
-      {item.note}
+      {bindOrphans(item.note)}
     </span>
   );
 }

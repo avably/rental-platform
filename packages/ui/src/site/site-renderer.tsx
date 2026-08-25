@@ -68,6 +68,7 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   galleryPrev: "Poprzednie zdjęcie",
   galleryNext: "Następne zdjęcie",
   galleryPosition: "Zdjęcie {current} z {total}",
+  galleryCredit: "Fot.:",
   contactHours: "Godziny otwarcia:",
   pricingFrom: "od",
   pricingUnits: {
@@ -88,7 +89,7 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
     message: "Wiadomość",
     submit: "Wyślij wiadomość",
     sending: "Wysyłanie…",
-    success: "Dziękujemy - wiadomość dotarła. Odpowiemy na podany adres.",
+    success: "Dziękujemy — wiadomość dotarła. Odpowiemy na podany adres.",
     privacyNote:
       "Podane dane wykorzystamy wyłącznie do odpowiedzi na tę wiadomość.",
     privacyLink: "Polityka prywatności",

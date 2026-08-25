@@ -32,7 +32,14 @@ export function ContactCaptchaField({
   const [token, setToken] = useState<string | null>(null);
 
   return (
-    <div data-contact-captcha>
+    /*
+      `contents` (S-33): ta owijka niesie POLE z tokenem, nie układ — pudełkiem
+      w kolumnie formularza jest wyłącznie kontener widgetu, który sam chowa
+      się, dopóki dostawca niczego nie pokazuje. Owijka-pudełko robiła z
+      `gap-4` formularza podwójny odstęp i ~72 px dziury przy trybie
+      niewidzialnym.
+    */
+    <div data-contact-captcha className="contents">
       <TurnstileWidget siteKey={siteKey} locale={locale} onToken={setToken} />
       <input type="hidden" name="captchaToken" value={token ?? ""} readOnly />
     </div>

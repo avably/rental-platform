@@ -1,6 +1,7 @@
 import type { UspStructuredItem } from "@avably/core/site";
 
 import { cn } from "../../lib/cn";
+import { bindOrphans } from "../orphans";
 import { siteIconComponent } from "../site-icons";
 import type { TemplateStyles } from "../template";
 
@@ -45,10 +46,10 @@ export function UspEntry({
         (`h2`) niesie powłoka.
       */}
       <h3 data-usp-title className={styles.cardTitle}>
-        {item.title}
+        {bindOrphans(item.title)}
       </h3>
       <p data-usp-text className="site-text-muted text-sm">
-        {item.text}
+        {bindOrphans(item.text)}
       </p>
     </li>
   );

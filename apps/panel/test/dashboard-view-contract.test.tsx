@@ -74,9 +74,9 @@ describe("sekcja przychodu", () => {
     expect(html).toContain('data-dashboard-stat="current-month"');
     expect(html).toContain('data-dashboard-stat="previous-month"');
     expect(html).toContain('data-dashboard-stat="last-12-months"');
-    // 315,00 zł (sierpień) i 1035,00 zł (12 mies. PLN).
+    // 315,00 zł (sierpień) i 1 035,00 zł (12 mies. PLN; S-48a — U+00A0 w escapie).
     expect(html).toContain("315,00");
-    expect(html).toContain("1035,00");
+    expect(html).toContain("1\u00A0035,00");
     // EUR osobno: 130,00 € w wierszu pozostałych walut.
     expect(html).toContain('data-dashboard-other-currency="EUR"');
     expect(html).toContain("130,00");

@@ -69,6 +69,7 @@ import { cn } from "../lib/cn";
 import { sectionBandClass } from "./bands";
 import { elementBindings, type ElementBindingResult, type SiteRecordContext } from "./binding-render";
 import { externalLinkRel } from "./links";
+import { bindOrphans } from "./orphans";
 import { FooterMark, ProductCards, siteImageUrl } from "./sections";
 import { siteIconComponent } from "./site-icons";
 import type { TemplateStyles } from "./template";
@@ -142,11 +143,18 @@ function colorClass(color: ElementColor | undefined): string | undefined {
  * wychodzących.
  */
 function FormattedText({ text, runs }: { text: string; runs?: readonly TextRun[] }) {
-  if (!runs || runs.length === 0) return <>{text}</>;
+  /*
+   * Sieroty (S-47): jednoliterowy spójnik dostaje twardą spację w chwili
+   * renderu — PER RUN, bo run jest granicą formatowania i tekst nie ma prawa
+   * jej przekroczyć. Spójnik na SZWIE runów (koniec jednego, słowo w drugim)
+   * zostaje łamliwy świadomie: szew to decyzja formatowania operatora,
+   * a klejenie przez nią wymagałoby ruszania cudzych przebiegów.
+   */
+  if (!runs || runs.length === 0) return <>{bindOrphans(text)}</>;
   return (
     <>
       {runs.map((run, index) => {
-        let node: ReactNode = run.text;
+        let node: ReactNode = bindOrphans(run.text);
         if (run.bold) node = <strong>{node}</strong>;
         if (run.italic) node = <em>{node}</em>;
         if (run.href) {
