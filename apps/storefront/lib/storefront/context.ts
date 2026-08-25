@@ -29,6 +29,7 @@ import {
 import {
   getPublicCatalog,
   getPublicCatalogPage,
+  getPublicCategoryNav,
   getPublicCategoryPage,
   getPublicProduct,
   getPublicProductSlugs,
@@ -39,6 +40,7 @@ import type {
   PublicCategoryMeta,
 } from "@/lib/checkout/contract";
 import { categorySortToDb, type CategorySort } from "@/lib/catalog/category-path";
+import { navItemsFromCounts, type CategoryNavItem } from "@/lib/catalog/category-nav";
 import {
   getPublishedLegalDocuments,
   type PublishedLegalDocumentSummary,
@@ -209,6 +211,16 @@ export interface CatalogPageContext extends Omit<StorefrontContext, "catalog"> {
    * zachowuje się jak przed wyszukiwarką.
    */
   query: string;
+  /**
+   * MENU KATEGORII POWŁOKI (ADR-247/266) — gotowe pozycje wejść do stron
+   * kategorii, w kolejności najemcy (`position`) i z licznikiem po PEŁNYM
+   * katalogu, z pominięciem kategorii pustych (`categoryNavItems`, guard
+   * pustych). Trasa `/katalog` przekazuje je do `StoreChrome`, żeby menu stało
+   * na niej tak samo, jak na stronie głównej — a nie znikało, gdy klient zaczyna
+   * przeglądać. Pusta tablica = brak wyzwalacza (nie rysujemy „Kategorie" bez
+   * ani jednej półki), także po nieudanym odczycie katalogu (fail-soft).
+   */
+  categoryNav: readonly CategoryNavItem[];
 }
 
 /**
@@ -259,6 +271,15 @@ export interface CategoryPageContext extends Omit<StorefrontContext, "catalog"> 
   total: number;
   /** Wybrany porządek — do zaznaczenia w przełączniku i do budowy adresów stron. */
   sort: CategorySort;
+  /**
+   * MENU KATEGORII POWŁOKI (ADR-247/266) — jak w `CatalogPageContext`: pozycje
+   * wejść do stron kategorii w kolejności najemcy, z licznikiem po PEŁNYM
+   * katalogu i guardem pustych. Trasa `/kategoria/{slug}` przekazuje je do
+   * `StoreChrome`, żeby klient przeglądający półkę nie tracił nawigacji między
+   * kategoriami. Pusta tablica = brak wyzwalacza (także fail-soft po nieudanym
+   * odczycie katalogu).
+   */
+  categoryNav: readonly CategoryNavItem[];
 }
 
 /**
@@ -373,6 +394,32 @@ async function _loadProductPageContext(
   };
 }
 
+/**
+ * MENU KATEGORII dla tras `/katalog` i `/kategoria/{slug}` (ADR-266).
+ *
+ * ==================== DLACZEGO WŁASNY, WĄSKI ODCZYT, A NIE PEŁNY KATALOG ====================
+ *
+ * Menu potrzebuje WSZYSTKICH kategorii najemcy (w kolejności `position`) i
+ * liczby pozycji per kategoria po CAŁYM katalogu — a stronicowana koperta trasy
+ * (`get_public_catalog_page`) świadomie nie niesie ani kategorii, ani pełnej
+ * listy przypisań (ADR-186: „czego tu nie ma"). Kuszące „doczytaj pełny katalog
+ * (`get_public_catalog`) i policz w pamięci" wraca DOKŁADNIE do kosztu, który
+ * stronicowanie zdjęło z tych tras: pozycja spoza strony wyników przyjechałaby
+ * do procesu, choć nie ma jej na ekranie (bramka `koszt-odslony.integration`).
+ * Dlatego menu jedzie WĄSKĄ funkcją bazy `app.get_public_category_nav` (0109),
+ * która liczy pozycje per kategoria PO STRONIE BAZY i oddaje same liczby — koszt
+ * O(kategorii), a nie O(katalogu), i ani jednej nazwy pozycji w ruchu.
+ *
+ * FAIL-SOFT: nieudany odczyt (najemca poza oknem / błąd transportu) → puste
+ * menu, nie błąd trasy — jak guard pustych w `categoryNavItems`. Izolację niesie
+ * sam odczyt: funkcja jest SECURITY DEFINER z jawnym filtrem `tenant_id`, więc
+ * menu najemcy A nie może nieść kategorii B (dowód: `packages/db/test/category-nav.test.ts`).
+ */
+async function loadCategoryNav(tenantId: string): Promise<CategoryNavItem[]> {
+  const entries = await getPublicCategoryNav(tenantId);
+  return entries ? navItemsFromCounts(entries) : [];
+}
+
 async function _loadCatalogPageContext(
   page: number,
   query = "",
@@ -383,12 +430,15 @@ async function _loadCatalogPageContext(
   // Flagi powłoki PIĄTYM członem (ADR-203) — patrz kontekst strony sprzętu.
   // [0107] `query` PIĄTYM argumentem odczytu katalogu (ADR-263): puste = pełny
   // katalog jak przed wyszukiwarką; niepuste zawęża okno i `total` w bazie.
-  const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
+  // [ADR-266] Menu kategorii SZÓSTYM członem — równolegle, buforowane; patrz
+  // `loadCategoryNav`.
+  const [envelope, appearance, site, legalDocuments, storeFlags, categoryNav] = await Promise.all([
     getPublicCatalogPage(tenantId, catalogPageOffset(page), CATALOG_PAGE_SIZE, query),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
     getPublicStoreFlags(tenantId),
+    loadCategoryNav(tenantId),
   ]);
 
   // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
@@ -423,6 +473,7 @@ async function _loadCatalogPageContext(
       pageCount,
       total: envelope.total,
       query,
+      categoryNav,
       locale,
       currency: envelope.tenant.currency,
       copy,
@@ -454,12 +505,15 @@ async function _loadCategoryPageContext(
   if (!tenantId) return { kind: "none" };
 
   // Flagi powłoki PIĄTYM członem (ADR-203) — jak przy stronie katalogu.
-  const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
+  // [ADR-266] Menu kategorii SZÓSTYM członem — równolegle, buforowane; patrz
+  // `loadCategoryNav`.
+  const [envelope, appearance, site, legalDocuments, storeFlags, categoryNav] = await Promise.all([
     getPublicCategoryPage(tenantId, slug, page, CATALOG_PAGE_SIZE, categorySortToDb(sort)),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
     getPublicStoreFlags(tenantId),
+    loadCategoryNav(tenantId),
   ]);
 
   // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
@@ -500,6 +554,7 @@ async function _loadCategoryPageContext(
       pageCount,
       total: envelope.total,
       sort,
+      categoryNav,
       locale,
       currency: envelope.tenant.currency,
       copy,

@@ -30,7 +30,7 @@
  * do CZYSTEJ strony kategorii (bez numeru strony i sortu).
  */
 import { categoryBasePath } from "@/lib/catalog/category-path";
-import type { PublicCategory } from "@/lib/checkout/contract";
+import type { PublicCategory, PublicCategoryNavEntry } from "@/lib/checkout/contract";
 
 /** Pozycja menu kategorii — gotowa do wyrenderowania, bez wiedzy o katalogu. */
 export interface CategoryNavItem {
@@ -78,6 +78,33 @@ export function categoryNavItems(catalog: CategoryNavInput): CategoryNavItem[] {
       slug: category.slug,
       href: categoryBasePath(category.slug),
       count,
+    });
+  }
+  return items;
+}
+
+/**
+ * Pozycje menu z WĄSKIEGO odczytu kategorii-nav (`app.get_public_category_nav`,
+ * 0109/ADR-266) — dla tras `/katalog` i `/kategoria`, które NIE mają pod ręką
+ * pełnego katalogu i nie wolno im go doczytywać (koszt O(katalogu), bramka
+ * `koszt-odslony.integration`). Funkcja bazy oddaje już same NIEPUSTE kategorie
+ * w kolejności `position` z licznikiem — tu dokładamy jedynie adres. Guard
+ * pustych powtórzony i tutaj (`count > 0`): ta sama reguła, co w
+ * `categoryNavItems`, żeby pozycja menu nigdy nie obiecała półki bez sprzętu,
+ * nawet gdyby kontrakt bazy się kiedyś rozjechał.
+ */
+export function navItemsFromCounts(
+  entries: readonly PublicCategoryNavEntry[],
+): CategoryNavItem[] {
+  const items: CategoryNavItem[] = [];
+  for (const entry of entries) {
+    if (entry.count <= 0) continue;
+    items.push({
+      id: entry.id,
+      name: entry.name,
+      slug: entry.slug,
+      href: categoryBasePath(entry.slug),
+      count: entry.count,
     });
   }
   return items;

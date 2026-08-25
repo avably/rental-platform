@@ -62,6 +62,14 @@ const ANON_EXECUTE_ALLOWLIST = [
   // DEFINER), a rozmiar odczytu na zacisku p_limit — pilnuje tego
   // catalog-page.test.ts.
   "get_public_catalog_page",
+  // 0109 — MENU KATEGORII dla tras /katalog i /kategoria (ADR-266). anon
+  // z dokładnie tego samego powodu, co get_public_catalog: nagłówek sklepu
+  // renderuje się dla anonimowego odwiedzającego, a menu kategorii jest jego
+  // częścią. Oddaje WYŁĄCZNIE nazwy, adresy i LICZBY pozycji per kategoria
+  // (kategorie niepuste) — ani jednej pozycji, więc odczyt jest O(kategorii),
+  // a nie O(katalogu). Izolacja stoi na jawnym zawężeniu tenant_id w każdym
+  // złączeniu (SECURITY DEFINER) — pilnuje tego category-nav.test.ts.
+  "get_public_category_nav",
   // 0101 — JEDNA STRONA jednej kategorii publicznej dla trasy /kategoria/{slug}
   // (ADR-244). anon z dokładnie tego samego powodu, co get_public_catalog_page,
   // i o WĘŻSZYM zakresie: te same pozycje i te same kolumny, które katalog

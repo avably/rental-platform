@@ -64,6 +64,8 @@ const stan = {
   pigulka: true,
   /** Ścieżka banera kategorii (image_path) albo null. */
   banner: null as string | null,
+  /** Czy `app.get_public_catalog` (reużyty pod menu kategorii, ADR-266) coś niesie. */
+  menu: false,
   wywolania: [] as unknown[],
 };
 
@@ -72,6 +74,22 @@ const STRONA_GLOWNA = {
   template: "classic",
   sections: [],
 };
+
+/** Kategoria niepusta i pusta — do menu kategorii powłoki (ADR-266). */
+const CAT_NIEPUSTA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const CAT_PUSTA = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+/**
+ * Koperta WĄSKIEGO odczytu menu kategorii (`app.get_public_category_nav`,
+ * 0109/ADR-266). Menu jest niezależne od kategorii spod adresu — niesie
+ * WSZYSTKIE (niepuste) kategorie najemcy, więc klient na jednej półce widzi drogę
+ * do pozostałych. Wpis `count: 0` sprawdza, że `navItemsFromCounts` trzyma guard
+ * pustych także w warstwie prezentacji.
+ */
+const NAV_ENTRIES = [
+  { id: CAT_NIEPUSTA, name: "Kajaki", slug: "kajaki", count: 3 },
+  { id: CAT_PUSTA, name: "Puste", slug: "puste", count: 0 },
+];
 
 vi.mock("next/headers", () => ({
   headers: () =>
@@ -148,6 +166,11 @@ vi.mock("@/lib/supabase-server", () => ({
           return { data: stan.stronaGlowna ? STRONA_GLOWNA : null, error: null };
         }
         if (fn === "get_published_legal_documents") return { data: [], error: null };
+        // [ADR-266] Wąski odczyt menu kategorii — `null` = nieudany odczyt:
+        // menu ma wtedy zniknąć (fail-soft), nie wywrócić trasy kategorii.
+        if (fn === "get_public_category_nav") {
+          return { data: stan.menu ? NAV_ENTRIES : null, error: null };
+        }
         return { data: null, error: null };
       },
     }),
@@ -189,6 +212,7 @@ describe("strona kategorii (ADR-247)", () => {
     stan.stronaGlowna = true;
     stan.pigulka = true;
     stan.banner = null;
+    stan.menu = false;
     stan.wywolania.length = 0;
     vi.resetModules();
   });
@@ -385,16 +409,25 @@ describe("strona kategorii (ADR-247)", () => {
   // -------------------------------------------------------------------
   // 6. Indeksowalność — kanon czystej strony i noindex pustej
   // -------------------------------------------------------------------
-  it("kanon CELUJE W CZYSTĄ stronę kategorii niezależnie od sortu i numeru strony", async () => {
+  it("kanon strony N wskazuje SAM SIEBIE, strona 1 — adres czysty, a sort DALEJ konsoliduje", async () => {
     const pierwsza = await metadane(SLUG);
     expect(pierwsza.alternates?.canonical).toBe("https://sklep.example.test/kategoria/rowery");
 
+    // Strona 2 jest kanonem SAMEJ SIEBIE (lustro `/katalog`, ADR-186/266): kanon
+    // strony 2 wskazujący stronę 1 chowałby przed wyszukiwarką ofertę z dalszych
+    // stron. Sort NIE wchodzi do kanonu (`categoryPagePath` bez sortu), więc
+    // `?sort=price_asc` dalej konsoliduje się do adresu strony bez sortu.
     vi.resetModules();
     const druga = await metadane(SLUG, { sort: "price_asc", strona: "2" });
     expect(
       druga.alternates?.canonical,
-      "kanon wariantu sort/strona musi konsolidować się do czystej strony kategorii",
-    ).toBe("https://sklep.example.test/kategoria/rowery");
+      "strona 2 musi być kanonem samej siebie, a sort skonsolidowany do adresu bez sortu",
+    ).toBe("https://sklep.example.test/kategoria/rowery?strona=2");
+  });
+
+  it("`?strona=1` ma ten sam kanon, co czysta strona kategorii — dwa adresy, jedna treść", async () => {
+    const jeden = await metadane(SLUG, { strona: "1" });
+    expect(jeden.alternates?.canonical).toBe("https://sklep.example.test/kategoria/rowery");
   });
 
   it("kategoria PUSTA zostaje POZA indeksem (treść cienka)", async () => {
@@ -439,5 +472,31 @@ describe("strona kategorii (ADR-247)", () => {
     expect(wylaczona).not.toContain("data-store-term-toggle");
     // Kategoria dalej SPRZEDAJE: siatka pozycji zostaje.
     expect(wylaczona, "flaga off zgasiła całą stronę kategorii").toContain(nazwa(1));
+  }, BUDZET_RENDERU);
+
+  // -------------------------------------------------------------------
+  // 8. Menu kategorii powłoki na /kategoria (ADR-266) — klient na jednej
+  //    półce nie traci drogi do pozostałych.
+  // -------------------------------------------------------------------
+  it("menu kategorii renderuje się na stronie kategorii, z guardem pustych", async () => {
+    stan.menu = true;
+    const html = await renderKategoria(SLUG);
+    expect(html, "menu kategorii nie stanęło w nagłówku strony kategorii").toContain(
+      "data-store-category-menu",
+    );
+    expect(html, "kategoria z pozycjami nie weszła do menu").toContain('href="/kategoria/kajaki"');
+    expect(html, "kategoria PUSTA weszła do menu wbrew guardowi").not.toContain(
+      'href="/kategoria/puste"',
+    );
+  }, BUDZET_RENDERU);
+
+  it("nieudany odczyt katalogu (fail-soft) nie gasi trasy ani nie rysuje menu", async () => {
+    stan.menu = false;
+    const html = await renderKategoria(SLUG);
+    // Strona kategorii dalej pokazuje ofertę — brak menu nie wywraca trasy.
+    expect(html, "brak menu zgasił stronę kategorii").toContain(nazwa(1));
+    expect(html, "puste menu narysowało wyzwalacz mimo braku kategorii").not.toContain(
+      "data-store-category-menu",
+    );
   }, BUDZET_RENDERU);
 });

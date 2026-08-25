@@ -296,6 +296,22 @@ export interface PublicCategory {
   position: number;
 }
 
+/**
+ * WPIS MENU KATEGORII (ADR-266) — kształt lustrzany do `app.get_public_category_nav`
+ * (0109). WĄSKI z rozmysłem: menu potrzebuje tylko nazwy, adresu i licznika, a
+ * funkcja bazy liczy pozycje per kategoria PO STRONIE BAZY i oddaje same liczby
+ * — bez ani jednej nazwy pozycji, więc odczyt jest O(kategorii), a nie
+ * O(katalogu) (patrz `koszt-odslony.integration`, ADR-185/186). `count` to
+ * liczba AKTYWNYCH pozycji kategorii; funkcja oddaje WYŁĄCZNIE kategorie
+ * niepuste (guard pustych po stronie bazy), w kolejności najemcy (`position`).
+ */
+export interface PublicCategoryNavEntry {
+  id: string;
+  name: string;
+  slug: string;
+  count: number;
+}
+
 export interface PublicCatalogProduct {
   id: string;
   name: string;
