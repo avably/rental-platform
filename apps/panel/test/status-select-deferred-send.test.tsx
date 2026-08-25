@@ -325,11 +325,17 @@ describe("okno na cofnięcie — ODROCZENIE, nie udawanie (ADR-075)", () => {
     await chooseSend();
     await advance(3_000);
 
-    // Wiadomość o poprzednim statusie przestała być prawdziwa — nie może
-    // wyjść „w tle” po kolejnej zmianie.
+    // `cancelled` jest przejściem NIEODWRACALNYM (ADR-270): wybór z dropdownu
+    // otwiera najpierw potwierdzenie i NIE rusza jeszcze poprzedniego
+    // odliczania — bo dopóki status faktycznie się nie zmienił, mail o
+    // poprzednim stanie wciąż jest prawdziwy. Odliczanie znika dopiero z
+    // UTRWALENIEM nowej zmiany, czyli po potwierdzeniu.
     await pickStatus(statusLabels.cancelled);
+    await clickButton(detail.confirmTerminalConfirm);
     await advance(60_000);
 
+    // Po potwierdzeniu: druga zmiana zapisana, a mail o poprzednim statusie
+    // NIE wyszedł „w tle" — odliczanie zostało anulowane przy utrwaleniu.
     expect(changeStatus).toHaveBeenCalledTimes(2);
     expect(sendEmail).not.toHaveBeenCalled();
   });
