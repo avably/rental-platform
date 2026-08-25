@@ -5,6 +5,8 @@
 
 export { addDays, assertIsoDate, rangesOverlapInclusive, rentalDaysInclusive, type IsoDate } from "./dates";
 
+export { formatRentalRange } from "./format-range";
+
 export {
   checkAvailability,
   type AvailabilityParams,

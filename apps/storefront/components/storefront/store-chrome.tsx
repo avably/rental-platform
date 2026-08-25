@@ -212,7 +212,7 @@ export function StoreChrome({
           storeName={storeName}
           logo={logo}
           nav={categoryMenu}
-          center={term ? <StoreTermPill copy={copy} /> : undefined}
+          center={term ? <StoreTermPill copy={copy} locale={term.locale} /> : undefined}
         />
         {term ? <StoreTermBar copy={copy} products={term.products} locale={term.locale} /> : null}
         {/*

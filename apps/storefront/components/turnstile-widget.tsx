@@ -18,6 +18,7 @@ interface TurnstileApi {
     opts: {
       sitekey: string;
       language: string;
+      size?: "normal" | "compact";
       callback: (token: string) => void;
       "expired-callback": () => void;
       "error-callback": () => void;
@@ -57,9 +58,17 @@ export interface TurnstileWidgetProps {
   locale: "en" | "pl";
   /** Token po rozwiązaniu; null gdy wygasł albo błąd — formularz czyści stan. */
   onToken: (token: string | null) => void;
+  /**
+   * Rozmiar widgetu dostawcy (F8): `normal` = 300×65 (stała szerokość ramki),
+   * `compact` = 150×140 dla slotów WĘŻSZYCH niż 300 px (telefony — karta
+   * podsumowania checkoutu przy kontenerze 300 px ma ~258 px treści).
+   * Domyślnie `normal`, więc dotychczasowi użytkownicy (formularz kontaktowy)
+   * nie zmieniają zachowania.
+   */
+  size?: "normal" | "compact";
 }
 
-export function TurnstileWidget({ siteKey, locale, onToken }: TurnstileWidgetProps) {
+export function TurnstileWidget({ siteKey, locale, onToken, size = "normal" }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Ref zamiast zależności efektu renderującego: zmiana handlera nie ma prawa
   // przeładować widgetu (remount = nowe wyzwanie dla użytkownika).
@@ -78,6 +87,7 @@ export function TurnstileWidget({ siteKey, locale, onToken }: TurnstileWidgetPro
       widgetId = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
         language: locale,
+        size,
         callback: (token) => onTokenRef.current(token),
         "expired-callback": () => onTokenRef.current(null),
         "error-callback": () => onTokenRef.current(null),
@@ -88,7 +98,7 @@ export function TurnstileWidget({ siteKey, locale, onToken }: TurnstileWidgetPro
       cancelled = true;
       if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
     };
-  }, [siteKey, locale]);
+  }, [siteKey, locale, size]);
 
   return <div ref={containerRef} />;
 }

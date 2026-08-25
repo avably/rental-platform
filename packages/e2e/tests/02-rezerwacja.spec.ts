@@ -77,10 +77,14 @@ test("klient wybiera termin, widzi dostępność i dodaje produkt do koszyka", a
   await expect(page.getByText("Dodano do koszyka")).toBeVisible();
 
   // Koszyk: pozycja z zasianym produktem i przejście do kasy.
+  // [F8] Pole liczbowe `#qty-…` zastąpił stepper `− n +` (spec F8) — intencja
+  // asercji bez zmian: pozycja ma ilość 1; zmienił się WYŁĄCZNIE nośnik.
   await page.getByRole("link", { name: "Przejdź do koszyka" }).click();
   await expect(page).toHaveURL(/\/cart$/);
   await expect(page.getByText(seed.productName)).toBeVisible();
-  await expect(page.locator(`#qty-${seed.productId}`)).toHaveValue("1");
+  await expect(
+    page.locator(`[data-cart-stepper="${seed.productId}"] [data-cart-stepper-quantity]`),
+  ).toHaveText("1");
   await expect(page.getByRole("link", { name: "Przejdź do zamówienia" })).toBeVisible();
 
   // KATALOG PO WYBRANIU TERMINU: kafel niesie liczbę wolnych sztuk (ADR-180).

@@ -71,6 +71,7 @@ export {
   assertIsoDate,
   rangesOverlapInclusive,
   rentalDaysInclusive,
+  formatRentalRange,
   checkAvailability,
   calculatePrice,
   quoteExtension,

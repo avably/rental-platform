@@ -30,7 +30,7 @@ test("checkout przelewem tworzy zamówienie widoczne w panelu jako Nieopłacone"
   // Ekran potwierdzenia z numerem zamówienia.
   const confirmation = page.getByRole("status").filter({ hasText: "Dziękujemy za zamówienie!" });
   await expect(confirmation).toBeVisible({ timeout: 15_000 });
-  const orderNumber = (await confirmation.locator("strong.tabular-nums").innerText()).trim();
+  const orderNumber = (await confirmation.locator("strong.site-numeric").innerText()).trim();
   expect(orderNumber.length).toBeGreaterThan(0);
 
   // Panel najemcy: to samo zamówienie na liście, status płatności „Nieopłacone".

@@ -70,7 +70,7 @@ test("sklep z dokumentami: etykieta linkuje permalink wersji, zamówienie utrwal
 
   const confirmation = page.getByRole("status").filter({ hasText: "Dziękujemy za zamówienie!" });
   await expect(confirmation).toBeVisible({ timeout: 15_000 });
-  const orderNumber = (await confirmation.locator("strong.tabular-nums").innerText()).trim();
+  const orderNumber = (await confirmation.locator("strong.site-numeric").innerText()).trim();
   expect(orderNumber.length).toBeGreaterThan(0);
 
   // Zamówienie wskazuje DOKŁADNIE ten wiersz wersji, który zasiał setup —
