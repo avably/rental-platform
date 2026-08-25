@@ -455,21 +455,19 @@ describe("strona kategorii (ADR-247)", () => {
     );
   }, BUDZET_RENDERU);
 
-  it("baner renderuje się TYLKO gdy kategoria ma image_path", async () => {
+  it("nagłówek kategorii NIE renderuje banera — nawet gdy kategoria go ma (F9b)", async () => {
+    // Decyzja właściciela 2026-08-25 (F9b): miniatura banera w nagłówku stała
+    // ~660 px od tytułu i czytała się jak sierota; benchmark nie kładzie w
+    // nagłówku kategorii żadnej grafiki. Baner ŻYJE na kaflach kategorii
+    // (sekcja categories) — strona kategorii go nie pokazuje wcale.
     const bez = await renderKategoria(SLUG);
     expect(bez, "baner pojawił się mimo braku image_path").not.toContain("data-category-banner");
 
     stan.banner = "kategorie/rowery/hero.jpg";
     vi.resetModules();
     const zBanerem = await renderKategoria(SLUG);
-    expect(zBanerem).toContain("data-category-banner");
-    expect(zBanerem, "URL banera nie wskazał publicznego bucketa sklepu").toContain(
-      "/storage/v1/object/public/site-images/kategorie/rowery/hero.jpg",
-    );
-    // Baner jest DEKORACYJNY — nazwę niesie h1, więc `alt` jest pusty (nie
-    // dubluje nagłówka w drzewie dostępności).
-    expect(zBanerem, "baner powiela nazwę kategorii z h1 w alt zamiast być pusty").toMatch(
-      /<img[^>]*data-category-banner[^>]*alt=""/,
+    expect(zBanerem, "nagłówek kategorii znowu renderuje baner (cofnięte F9b)").not.toContain(
+      "data-category-banner",
     );
   }, BUDZET_RENDERU);
 

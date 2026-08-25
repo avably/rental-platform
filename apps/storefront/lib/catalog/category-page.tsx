@@ -122,10 +122,6 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
   const seam = buildSiteRenderSeam(ctx);
   const styles = siteStyles();
 
-  const bannerUrl = category.image_path
-    ? categoryBannerUrl(ctx.supabaseUrl, category.image_path)
-    : null;
-
   // BreadcrumbList: „Sklep > Kategoria" — absolutny adres wymaga origin hosta
   // najemcy; bez niego (stan nieznanego hosta) po prostu nie ma bloku danych,
   // tak jak Product JSON-LD na stronie sprzętu.
@@ -162,7 +158,15 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
       revealNonce={revealNonce}
     >
       {breadcrumbLd ? <JsonLd data={breadcrumbLd} /> : null}
-      <main className={styles.section}>
+      {/*
+        RYTM LISTINGU ≠ RYTM SEKCJI (F9b, uwaga właściciela 2026-08-25:
+        „przestrzeń między menu a produktami — tragiczna"). `styles.section`
+        (py-16/20) jest skalą SEKCJI MARKETINGOWYCH strony najemcy; listing to
+        narzędzie — klient ma widzieć ofertę bez ekranu pustki. Zmierzony stan
+        przed: 80 px luki pod nagłówkiem, 46 px do tytułu, 50 px do toolbara.
+        Wzorzec benchmarku: okruszki tuż pod belką, tytuł i toolbar zwarte.
+      */}
+      <main className="pt-5 pb-16 @min-[40rem]/site:pt-6 @min-[40rem]/site:pb-20">
         <div className={styles.container}>
           {/*
             OKRUSZKI — widoczna ścieżka nawigacji plus jej odpowiednik w danych
@@ -184,30 +188,18 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
           </nav>
 
           {/*
-            NAGŁÓWEK KOMPAKTOWY (F9, mandat właściciela: „wielki baner tylko
-            przeszkadza"). Baner z kreatora ŻYJE dalej — jako MINIATURA obok
-            tytułu (88 px na szerokim kontenerze, 64 px nad tytułem na wąskim),
-            a nie hero na pół ekranu przed ofertą. Licznik pozycji stoi w JEDNYM
+            NAGŁÓWEK KOMPAKTOWY (F9 + F9b). Licznik pozycji stoi w JEDNYM
             wierszu z h1 (wzorzec listingu elektromarketów: „Nazwa · N pozycji"),
             zamiast osobnego akapitu — nagłówek kończy się przed ofertą po
             ~3 wierszach, nie po ekranie.
 
-            KOLEJNOŚĆ DOM: miniatura PIERWSZA (na wąskim kontenerze kolumna
-            stawia ją nad tytułem), na szerokim `order-last` przenosi ją na
-            prawo od tytułu. Obraz jest dekoracyjny (alt="" — nazwę niesie h1).
+            BEZ MINIATURY BANERA (F9b, uwaga właściciela 2026-08-25): miniatura
+            88 px po prawej stała ~660 px od tytułu i czytała się jak sierota,
+            nie jak część nagłówka; benchmark nie kładzie w nagłówku kategorii
+            ŻADNEJ grafiki. Baner z kreatora żyje na KAFLACH kategorii (sekcja
+            categories + strona główna) — tam pracuje, tu przeszkadzał.
           */}
-          <header
-            data-category-header
-            className="mt-5 flex flex-col gap-4 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center @min-[40rem]/site:justify-between @min-[40rem]/site:gap-6"
-          >
-            {bannerUrl ? (
-              <img
-                data-category-banner
-                src={bannerUrl}
-                alt=""
-                className="site-media h-16 w-full object-cover @min-[40rem]/site:order-last @min-[40rem]/site:h-22 @min-[40rem]/site:w-44 @min-[40rem]/site:shrink-0"
-              />
-            ) : null}
+          <header data-category-header className="mt-2">
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
@@ -244,13 +236,13 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
           */}
           <div
             data-listing-toolbar
-            className="mt-6 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center @min-[40rem]/site:justify-between @min-[40rem]/site:gap-4"
+            className="mt-4 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center @min-[40rem]/site:justify-between @min-[40rem]/site:gap-4"
           >
             <CatalogSearch copy={copy} query="" placeholder={copy.category.searchPlaceholder} />
             {ctx.total > 0 ? <CategorySort copy={copy} slug={category.slug} active={sort} /> : null}
           </div>
 
-          <div className="mt-8">
+          <div className="mt-6">
             <CategoryList
               products={seam.products}
               labels={seam.labels}
