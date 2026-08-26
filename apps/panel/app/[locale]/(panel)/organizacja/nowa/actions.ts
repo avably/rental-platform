@@ -22,11 +22,15 @@ export interface CreateTenantState {
  *   P0002 — limit 2 organizacji na użytkownika,
  *   P0003 — brak akceptacji obowiązującego regulaminu,
  *   22023 — slug zarezerwowany, wersja regulaminu inna niż obowiązująca, ZŁA
- *           SUMA KONTROLNA NIP albo NIP BEZ DOWODU WERYFIKACJI w
- *           app.nip_lookup_cache (0098, ADR-234) — świadomie ta sama klasa
- *           co reszta walidacji tej funkcji, nie osobny kod (patrz komentarz
+ *           SUMA KONTROLNA NIP (0098, ADR-234) albo zły kształt danych
+ *           firmowych wpisanych ręcznie (za długa nazwa rejestrowa, REGON
+ *           spoza 9/14 cyfr — 0114, ADR-276). Świadomie ta sama klasa co
+ *           reszta walidacji tej funkcji, nie osobny kod (patrz komentarz
  *           w migracji 0098_create_tenant_nip.sql: PostgREST maskuje custom
  *           SQLSTATE spoza P0001 jako 500 bez treści).
+ *           OD ADR-276 brak POTWIERDZENIA w rejestrze NIE JEST już błędem —
+ *           organizacja powstaje z danymi ręcznymi i bez stempla
+ *           `registry_verified_at`.
  * Te idą na ekran wprost. Wszystko poza tą listą to komunikat DOSTAWCY —
  * i tam była dziura N5a: kolizja sluga (23505) wracała surowym angielskim
  * „duplicate key value violates unique constraint …", jako jedyne miejsce
@@ -79,6 +83,12 @@ export async function createTenantAction(
     slug: formData.get("slug"),
     name: formData.get("name"),
     nip: formData.get("nip"),
+    // ADR-276: pola sekcji ręcznej istnieją w żądaniu WYŁĄCZNIE wtedy, gdy
+    // formularz je wyrenderował (rejestr nie potwierdził firmy). `FormData.get`
+    // oddaje wtedy `null`, a schemat mówi „opcjonalne", nie „nullowalne" —
+    // stąd jawna zamiana, zamiast rozluźniania schematu o wariant null.
+    legalName: formData.get("legalName") ?? undefined,
+    regon: formData.get("regon") ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
@@ -109,12 +119,20 @@ export async function createTenantAction(
   }
 
   // ADR-234: p_nip idzie ZAWSZE — schemat wymaga go od momentu, w którym NIP
-  // stał się wymaganym krokiem onboardingu. `app.create_tenant` (0098)
-  // odrzuci go, jeśli suma kontrolna jest zła ALBO brak dowodu weryfikacji
-  // w app.nip_lookup_cache (czyli user nie kliknął „Pobierz dane" — albo
-  // zmienił NIP PO kliknięciu, patrz form.tsx: pole resetuje stan weryfikacji
-  // przy każdej zmianie). Legal_name/regon NIE są przesyłane — RPC bierze je
-  // WYŁĄCZNIE z cache'a, klient nie ma jak ich wstrzyknąć.
+  // stał się wymaganym krokiem onboardingu. `app.create_tenant` odrzuci go,
+  // jeśli suma kontrolna jest zła.
+  //
+  // ADR-276: legal_name/regon idą TYLKO wtedy, gdy użytkownik je wpisał
+  // (sekcja ręczna — rejestr firmy nie potwierdził). Wysyłanie ich nie jest
+  // furtką do sfałszowania „zweryfikowanej" organizacji: gdy dla tego NIP-u
+  // ISTNIEJE wiersz w app.nip_lookup_cache, RPC te parametry IGNORUJE i
+  // bierze dane z cache'a — a stempel `registry_verified_at` powstaje
+  // wyłącznie w tamtej gałęzi i nie ma parametru, którym dałoby się go podać.
+  const registryFields =
+    parsed.data.legalName !== undefined || parsed.data.regon !== undefined
+      ? { p_legal_name: parsed.data.legalName ?? null, p_regon: parsed.data.regon ?? null }
+      : {};
+
   const { error } = await supabase.schema("app").rpc(
     "create_tenant",
     currentTerms && termsFields.data.termsVersionId
@@ -126,8 +144,9 @@ export async function createTenantAction(
           // weszła nowa wersja, baza odmówi 22023 i user przeczyta nową.
           p_terms_version_id: termsFields.data.termsVersionId,
           p_nip: parsed.data.nip,
+          ...registryFields,
         }
-      : { p_slug: parsed.data.slug, p_name: parsed.data.name, p_nip: parsed.data.nip },
+      : { p_slug: parsed.data.slug, p_name: parsed.data.name, p_nip: parsed.data.nip, ...registryFields },
   );
   if (error) {
     // NIE „error.message wprost" (stan sprzed ADR-153): wprost idą wyłącznie

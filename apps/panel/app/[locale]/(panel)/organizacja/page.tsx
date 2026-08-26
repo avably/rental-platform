@@ -41,7 +41,7 @@ export default async function OrganizationPage() {
 
   const { data: tenant } = await ctx.supabase
     .from("tenants")
-    .select("id, name, status, subscriptions(plan_id, status)")
+    .select("id, name, status, registry_verified_at, subscriptions(plan_id, status)")
     .eq("id", ctx.tenantId)
     .maybeSingle();
 
@@ -77,6 +77,20 @@ export default async function OrganizationPage() {
   // pozostaje serwer na docelowym ekranie, kafelek jest filtrem widoku.
   const owner = ctx.role === "owner";
 
+  // ADR-276 — WIDOCZNOŚĆ STANU DANYCH FIRMOWYCH. `registry_verified_at IS
+  // NULL` znaczy „nazwa rejestrowa i REGON nie mają pokrycia w rejestrze":
+  // albo wpisano je ręcznie (nowa ścieżka onboardingu), albo organizacja jest
+  // sprzed ADR-234 i nie ma ich wcale. Oba przypadki mówią operatorowi to
+  // samo — nikt tych danych nie potwierdził — więc jeden znacznik, nie dwa.
+  //
+  // NIE `SecondaryStatusChip`: mapa statusów drugorzędnych jest kopią 1:1
+  // powierzchni artefaktu Fazy 2 (kontrakt `secondary-status-contract`), a ten
+  // stan nie ma tam swojej osi. Dokładanie osi do mapy bez decyzji projektowej
+  // rozjechałoby kontrakt; znacznik jest więc zwykłą pigułką obrysową —
+  // dokładnie ten sam wzorzec, co „szkic czeka na publikację" na ekranie
+  // strony sklepu.
+  const registryUnverified = tenant.registry_verified_at === null;
+
   const tiles = [
     { href: "/organizacja/dane", title: t("hub.dataTitle"), description: t("hub.dataDescription") },
     { href: "/organizacja/plan", title: t("billing.title"), description: t("billing.description") },
@@ -103,13 +117,36 @@ export default async function OrganizationPage() {
         data-organization-identity
         title={tenant.name}
         status={
-          tenant.status === "active" ? (
-            <SecondaryStatusChip axis="organization" value="active" />
+          tenant.status === "active" || registryUnverified ? (
+            <span className="flex flex-wrap items-center gap-2">
+              {tenant.status === "active" ? (
+                <SecondaryStatusChip axis="organization" value="active" />
+              ) : null}
+              {registryUnverified ? (
+                <span
+                  data-registry-unverified
+                  className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]"
+                >
+                  {t("registryUnverifiedBadge")}
+                </span>
+              ) : null}
+            </span>
           ) : undefined
         }
         description={t("hub.description")}
       >
         <ReadList rows={identityRows} />
+        {/* Sama pigułka mówi CO, ale nie mówi CO TO ZNACZY — a to jest tu
+            cała informacja: organizacja działa, brakuje wyłącznie
+            potwierdzenia danych firmowych. */}
+        {registryUnverified ? (
+          <p
+            data-registry-unverified-note
+            className="text-muted-foreground text-[13px] leading-[18px]"
+          >
+            {t("registryUnverifiedNote")}
+          </p>
+        ) : null}
       </ScreenSection>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

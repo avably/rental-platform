@@ -85,17 +85,46 @@ export const createTenantSchema = z.object({
   /**
    * ADR-234: NIP WYMAGANY przy zakładaniu organizacji (decyzja właściciela).
    * Walidacja tu to TYLKO suma kontrolna (`isValidNipChecksum`, formalna
-   * poprawność) — „istnieje realnie w rejestrze" nie da się sprawdzić w Zod,
-   * to bramuje `app.create_tenant` przez `app.nip_lookup_cache` (0097/0098):
-   * bez udanego kliknięcia „Pobierz dane" RPC odmawia niezależnie od tego,
-   * co przejdzie tu. Ten schemat jest pierwszą linią (czytelny błąd zanim
-   * cokolwiek poleci do bazy), nie jedyną.
+   * poprawność) — czy rejestr POTWIERDZIŁ firmę, rozstrzyga
+   * `app.create_tenant` po wierszu w `app.nip_lookup_cache` (0097/0099).
+   * Od ADR-276 brak potwierdzenia NIE BLOKUJE założenia organizacji: dane
+   * firmowe idą wtedy z pól ręcznych niżej, a wiersz zostaje bez stempla
+   * `registry_verified_at`. NIP zostaje wymagany zawsze.
    */
   nip: z
     .string()
     .trim()
     .transform((value) => normalizeNip(value))
     .refine((value) => isValidNipChecksum(value), "Nieprawidłowy NIP."),
+  /**
+   * ADR-276 — WARIANT RĘCZNY. Oba pola są OPCJONALNE na poziomie kształtu,
+   * bo ścieżka szczęśliwa (rejestr potwierdził) ich nie wysyła w ogóle,
+   * a RPC i tak ZIGNOROWAŁOBY je na rzecz danych z cache'a. Wymóg „nazwa
+   * rejestrowa musi być" w wariancie ręcznym stoi w formularzu (`required`)
+   * i nie da się go tu wyrazić bez znajomości wyniku wyszukiwania, którego
+   * ten schemat nie widzi.
+   *
+   * Puste stringi (pola wyrenderowane, ale nietknięte) mapujemy na
+   * `undefined`, żeby akcja nie wysyłała do bazy `""` zamiast NULL-a.
+   * Kształt REGON-u to LUSTRO CHECK-u kolumny (0096) i walidacji w RPC —
+   * trzecia linia obrony, dająca komunikat bez rundy do bazy.
+   */
+  legalName: z
+    .string()
+    .trim()
+    .max(200, "Nazwa rejestrowa firmy jest za długa.")
+    .transform((value) => (value === "" ? undefined : value))
+    .optional(),
+  regon: z
+    .string()
+    .trim()
+    .transform((value) => value.replace(/[^0-9]/g, ""))
+    .refine(
+      (value) => value === "" || /^[0-9]{9}([0-9]{5})?$/.test(value),
+      "REGON jest nieprawidłowy — podaj 9 albo 14 cyfr.",
+    )
+    .transform((value) => (value === "" ? undefined : value))
+    .optional(),
 });
 
 /**

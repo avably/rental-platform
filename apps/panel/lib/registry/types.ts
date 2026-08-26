@@ -29,13 +29,28 @@ export interface CompanyLookupFound {
 }
 
 /**
- * Wynik NEGATYWNY — rozróżnienie „nie znaleziono" (oba źródła zgodnie
- * mówią: nie ma takiej firmy) od „rejestr niedostępny" (sieć/5xx — NIE
- * fabrykujemy odpowiedzi i NIE przepuszczamy cicho, patrz brief SPEC A.5).
+ * Wynik NEGATYWNY. Powód jest ROZRÓŻNIONY, bo każdy z nich znaczy dla
+ * człowieka przed formularzem coś innego — a do ADR-276 wszystkie poza
+ * „nie znaleziono" zlewały się w jedno „Rejestr chwilowo niedostępny,
+ * spróbuj ponownie", czyli w radę, która NIC NIE ZMIENIA w trzech z
+ * czterech przypadków:
+ *
+ *   • `invalid_checksum` — NIP jest formalnie zły, poprawia go użytkownik.
+ *   • `not_found` — oba źródła zgodnie mówią „nie ma takiej firmy" (np.
+ *     podmiot ZWOLNIONY z VAT nie figuruje w wykazie MF). Ponawianie nie
+ *     pomoże; pomoże wpisanie danych ręcznie.
+ *   • `unavailable` — awaria PRZEJŚCIOWA (sieć/5xx/timeout). Tu „spróbuj
+ *     ponownie" jest prawdą, ale i tak oferujemy drogę ręczną.
+ *   • `unconfigured` — rejestru NIE MA JAK zapytać, bo brakuje konfiguracji
+ *     po NASZEJ stronie (klucz GUS). Nazwanie tego „chwilową niedostępnością"
+ *     było najgorszym z komunikatów: kazało czekać na coś, co samo nie minie.
+ *   • `rate_limited` — użytkownik wyczerpał limit prób wyszukiwania. Wina
+ *     nie leży po stronie rejestru i minie po chwili, ale to INNA rada niż
+ *     „odśwież i spróbuj".
  */
 export interface CompanyLookupNotFound {
   ok: false;
-  reason: "invalid_checksum" | "not_found" | "unavailable";
+  reason: "invalid_checksum" | "not_found" | "unavailable" | "unconfigured" | "rate_limited";
   message: string;
 }
 

@@ -19,18 +19,18 @@
  *   3. LUKA Z RECENZJI PRZED MERGE (0099) — REGRESJA DOWODZĄCA FIX-A:
  *      `nip_lookup_cache_put` BEZ poprawnego `p_write_secret` (brak albo zły)
  *      jest ODRZUCANE (42501), niezależnie od poprawności kształtu danych —
- *      zalogowany user z konsoli przeglądarki NIE MOŻE już sam sobie
- *      uwiarygodnić dowolnego NIP-u. `create_tenant` dla NIP-u, dla którego
- *      istnieje WYŁĄCZNIE taka odrzucona próba (żaden wiersz w cache'u nie
- *      powstał), dalej odmawia jak dla NIP-u nigdy nietkniętego — dawny
- *      wektor ataku (fabrykacja legalName/regon + poprawna suma kontrolna)
- *      już nie przechodzi.
- *   4. `create_tenant` z `p_nip`: zła suma kontrolna → 22023; suma dobra, ale
- *      BRAK dowodu w cache'u → 22023 ("nie zweryfikowano"); suma dobra + cache
- *      trafiony PRAWDZIWYM (autoryzowanym sekretem) zapisem → tenant dostaje
- *      nip/regon/legal_name Z CACHE'A (nie z parametrów, których RPC nawet
- *      nie przyjmuje — jedyna droga wstrzyknięcia fałszywej nazwy firmy jest
- *      NIEWYRAŻALNA).
+ *      zalogowany user z konsoli przeglądarki NIE MOŻE sam sobie uwiarygodnić
+ *      dowolnego NIP-u. Po ADR-276 (0114) skutek tej odmowy jest INNY, ale
+ *      obrona ta sama: `create_tenant` dla NIP-u, dla którego istnieje
+ *      WYŁĄCZNIE odrzucona próba, zakłada organizację jako NIEZWERYFIKOWANĄ
+ *      (`registry_verified_at IS NULL`) i BEZ sfabrykowanych danych — stempel
+ *      weryfikacji dalej jest nieosiągalny tą drogą.
+ *   4. `create_tenant` z `p_nip`: zła suma kontrolna → 22023 (bez zmian);
+ *      suma dobra + cache trafiony PRAWDZIWYM (autoryzowanym sekretem)
+ *      zapisem → tenant dostaje nip/regon/legal_name Z CACHE'A i STEMPEL
+ *      `registry_verified_at`; suma dobra bez wpisu w cache'u → od ADR-276
+ *      organizacja POWSTAJE, ale bez stempla (wariant ręczny — pełne
+ *      pokrycie w manual-company-identity.test.ts).
  *   5. WSTECZNA KOMPATYBILNOŚĆ: `p_nip` pominięty → zachowanie DOKŁADNIE jak
  *      przed 0098 (nip/regon/legal_name zostają NULL) — to jest to, na czym
  *      stoi >40 istniejących plików testowych używających create_tenant jako
@@ -63,12 +63,6 @@ const REQUIRED_ENV = [
 const hasEnv = integrationEnv(REQUIRED_ENV);
 
 const PG_INVALID_PARAMETER = "22023";
-// ŚWIADOMIE ten sam kod co PG_INVALID_PARAMETER — PostgREST maskuje custom
-// SQLSTATE spoza klasy P0001 jako 500 "Something went wrong" bez treści
-// (zweryfikowane empirycznie, patrz komentarz w 0098_create_tenant_nip.sql),
-// więc "NIP niezweryfikowany" świadomie dzieli klasę 22023 z resztą walidacji
-// create_tenant zamiast ryzykować kolejny zamaskowany kod.
-const PG_NIP_NOT_VERIFIED = "22023";
 /** 42501 (insufficient_privilege) — bramka sekretu zapisu (0099), standardowa klasa, PostgREST jej nie maskuje. */
 const PG_WRITE_SECRET_DENIED = "42501";
 
@@ -272,7 +266,7 @@ describe.skipIf(!hasEnv)("app.nip_lookup_cache + weryfikacja NIP w create_tenant
     expect(row).toHaveLength(0);
   });
 
-  it("LUKA Z RECENZJI (0099): create_tenant dla NIP-u z WYŁĄCZNIE odrzuconą (bez sekretu) próbą zapisu → 22023, dawny wektor ataku zamknięty", async () => {
+  it("LUKA Z RECENZJI (0099) + ADR-276: fabrykacja bez sekretu nie daje STEMPLA weryfikacji — organizacja powstaje, ale jako NIEZWERYFIKOWANA", async () => {
     const user = await signedInUser(admin);
 
     // Atakujący próbuje sfabrykować dane firmy dla poprawnego (checksum) NIP-u
@@ -284,21 +278,32 @@ describe.skipIf(!hasEnv)("app.nip_lookup_cache + weryfikacja NIP w create_tenant
       .rpc("nip_lookup_cache_put", { p_nip: ATTACKER_FORGED_NIP, p_data: CACHE_DATA, p_source: "mf" });
     expect(forgedAttempt.error?.code).toBe(PG_WRITE_SECRET_DENIED);
 
-    // create_tenant dla tego samego NIP-u zachowuje się TAK, JAKBY próby
-    // w ogóle nie było — to jest dowód, że fabrykacja bez sekretu jest
-    // NIESKUTECZNA jako droga do "zweryfikowanego" NIP-u, nie tylko że
-    // put zwraca błąd.
+    // ZMIANA WOBEC ADR-234 (decyzja właściciela 2026-08-26, ADR-276): brak
+    // dowodu w cache'u NIE BLOKUJE już zakładania organizacji — blokował
+    // realnych klientów (podmiot zwolniony z VAT + brak klucza GUS). Ten
+    // przypadek pilnuje więc tego, co ZOSTAŁO obroną: fabrykacja bez sekretu
+    // nie daje STEMPLA. Organizacja powstaje, ale `registry_verified_at`
+    // jest NULL, a `legal_name` to WYŁĄCZNIE to, co wołający podał wprost —
+    // nie sfabrykowana treść z odrzuconego `put` (której w bazie nie ma).
     const slug = `nip-forged-${randomUUID().slice(0, 8)}`;
-    const { data, error } = await rpcCreateTenant(user, {
+    const { data: tenantId, error } = await rpcCreateTenant(user, {
       p_slug: slug,
       p_name: "Sfabrykowany",
       p_nip: ATTACKER_FORGED_NIP,
     });
-    expect(data).toBeNull();
-    expect(error?.code).toBe(PG_NIP_NOT_VERIFIED);
+    expect(error).toBeNull();
+    createdTenantIds.push(tenantId as string);
 
-    const check = await admin.from("tenants").select("id").eq("slug", slug).maybeSingle();
-    expect(check.data).toBeNull();
+    const row = await admin
+      .from("tenants")
+      .select("nip, regon, legal_name, registry_verified_at")
+      .eq("slug", slug)
+      .single();
+    expect(row.data?.nip).toBe(ATTACKER_FORGED_NIP);
+    expect(row.data?.registry_verified_at).toBeNull();
+    // Kluczowe: dane z ODRZUCONEGO put-a nie przeciekły do tenanta.
+    expect(row.data?.legal_name).toBeNull();
+    expect(row.data?.regon).toBeNull();
   });
 
   it("create_tenant z p_nip o złej sumie kontrolnej → 22023, tenant NIE powstaje", async () => {
@@ -316,19 +321,24 @@ describe.skipIf(!hasEnv)("app.nip_lookup_cache + weryfikacja NIP w create_tenant
     expect(check.data).toBeNull();
   });
 
-  it("create_tenant z p_nip poprawnym, ale BEZ wpisu w cache → P0004, tenant NIE powstaje", async () => {
+  it("ADR-276: create_tenant z p_nip poprawnym, ale BEZ wpisu w cache → tenant POWSTAJE bez stempla (dawniej odmowa 22023)", async () => {
     const user = await signedInUser(admin);
     const slug = `nip-unverif-${randomUUID().slice(0, 8)}`;
-    const { data, error } = await rpcCreateTenant(user, {
+    const { data: tenantId, error } = await rpcCreateTenant(user, {
       p_slug: slug,
       p_name: "Niezweryfikowany",
       p_nip: UNVERIFIED_NIP,
     });
-    expect(data).toBeNull();
-    expect(error?.code).toBe(PG_NIP_NOT_VERIFIED);
+    expect(error).toBeNull();
+    createdTenantIds.push(tenantId as string);
 
-    const check = await admin.from("tenants").select("id").eq("slug", slug).maybeSingle();
-    expect(check.data).toBeNull();
+    const row = await admin
+      .from("tenants")
+      .select("nip, registry_verified_at")
+      .eq("slug", slug)
+      .single();
+    expect(row.data?.nip).toBe(UNVERIFIED_NIP);
+    expect(row.data?.registry_verified_at).toBeNull();
   });
 
   it("create_tenant z p_nip zweryfikowanym w cache → tenant dostaje nip/regon/legal_name Z CACHE'A", async () => {
@@ -355,12 +365,14 @@ describe.skipIf(!hasEnv)("app.nip_lookup_cache + weryfikacja NIP w create_tenant
 
     const row = await admin
       .from("tenants")
-      .select("nip, regon, legal_name, name, slug")
+      .select("nip, regon, legal_name, name, slug, registry_verified_at")
       .eq("id", tenantId as string)
       .single();
     expect(row.data?.nip).toBe(VALID_NIP);
     expect(row.data?.regon).toBe(CACHE_DATA.regon);
     expect(row.data?.legal_name).toBe(CACHE_DATA.legalName);
+    // ADR-276 (0114): ścieżka rejestrowa STEMPLUJE moment potwierdzenia.
+    expect(row.data?.registry_verified_at).not.toBeNull();
     // Nazwa handlowa i slug NIE są nadpisane danymi rejestru (brief SPEC D).
     expect(row.data?.name).toBe("Nazwa handlowa (może różnić się od rejestrowej)");
     expect(row.data?.slug).toBe(slug);
@@ -373,9 +385,14 @@ describe.skipIf(!hasEnv)("app.nip_lookup_cache + weryfikacja NIP w create_tenant
     expect(error).toBeNull();
     createdTenantIds.push(tenantId as string);
 
-    const row = await admin.from("tenants").select("nip, regon, legal_name").eq("id", tenantId as string).single();
+    const row = await admin
+      .from("tenants")
+      .select("nip, regon, legal_name, registry_verified_at")
+      .eq("id", tenantId as string)
+      .single();
     expect(row.data?.nip).toBeNull();
     expect(row.data?.regon).toBeNull();
     expect(row.data?.legal_name).toBeNull();
+    expect(row.data?.registry_verified_at).toBeNull();
   });
 });
