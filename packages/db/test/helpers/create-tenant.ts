@@ -25,9 +25,18 @@ export interface CreateTenantArgs {
    * tenanta jako fixture dla funkcji niezwiązanych z onboardingiem, więc
    * domyślnie NIC się nie zmienia (p_nip pominięty = zachowanie sprzed
    * 0098). Testy SAME weryfikujące ścieżkę NIP (packages/db/test/
-   * nip-lookup-cache.test.ts) podają go jawnie.
+   * nip-lookup-cache.test.ts, manual-company-identity.test.ts) podają go
+   * jawnie.
    */
   p_nip?: string;
+  /**
+   * ADR-276 (0114) — WARIANT RĘCZNY. Trafiają do `tenants` WYŁĄCZNIE wtedy,
+   * gdy dla `p_nip` NIE MA wiersza w `app.nip_lookup_cache`; przy trafionym
+   * cache'u RPC je ignoruje na rzecz danych z rejestru. Bez `p_nip` RPC je
+   * ODRZUCA (22023).
+   */
+  p_legal_name?: string | null;
+  p_regon?: string | null;
 }
 
 export async function rpcCreateTenant(

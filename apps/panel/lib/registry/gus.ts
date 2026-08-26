@@ -246,7 +246,13 @@ async function fetchFullReport(
 export async function lookupGus(nip: string, deps: GusDeps = {}): Promise<CompanyLookupResult> {
   const key = gusUserKey();
   if (!key) {
-    return { ok: false, reason: "unavailable", message: "Rejestr GUS niedostępny (brak konfiguracji)." };
+    // ADR-276: NIE `unavailable`. Brak klucza to stan TRWAŁY po naszej
+    // stronie — dopóki właściciel go nie podepnie, kolejna próba da
+    // dokładnie to samo. Do ADR-276 ten wariant nosił „chwilowo
+    // niedostępny, spróbuj ponownie" i był GŁÓWNĄ przyczyną tego, że
+    // podatnik zwolniony z VAT (MF nie zna, GUS bez klucza) nie mógł
+    // założyć konta i nie dowiadywał się dlaczego.
+    return { ok: false, reason: "unconfigured", message: "Rejestr GUS niedostępny (brak konfiguracji)." };
   }
 
   const resolvedDeps: Required<GusDeps> = {

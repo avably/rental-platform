@@ -63,11 +63,15 @@ describe("lookupCompanyByNipAction", () => {
     expect(lookupMock).not.toHaveBeenCalled();
   });
 
-  it("rate limit przekroczony → unavailable, lookup NIE wołany", async () => {
+  it("rate limit przekroczony → rate_limited (NIE unavailable), lookup NIE wołany", async () => {
+    // ADR-276: wyczerpanie NASZEGO limitu prób nie jest niedostępnością
+    // rejestru. Formularz pokazuje komunikat ze słownika po `reason`, więc
+    // dopóki oba warianty miały ten sam powód, użytkownik czytał „Rejestr
+    // chwilowo niedostępny" o bramce, którą sam wyzwolił.
     rateLimitSuccess = false;
     const result = await lookupCompanyByNipAction("7740001454");
     expect(result.ok).toBe(false);
-    expect((result as { reason: string }).reason).toBe("unavailable");
+    expect((result as { reason: string }).reason).toBe("rate_limited");
     expect(lookupMock).not.toHaveBeenCalled();
   });
 

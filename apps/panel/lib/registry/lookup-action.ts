@@ -51,9 +51,13 @@ export async function lookupCompanyByNipAction(rawNip: string): Promise<CompanyL
     prefix: NIP_LOOKUP_RATE_LIMIT_PREFIX,
   });
   if (!rateLimit.success) {
+    // ADR-276: własny powód, nie `unavailable`. Formularz pokazuje komunikat
+    // ZE SŁOWNIKA (nie `message` stąd), więc do ADR-276 wyczerpanie limitu
+    // wyświetlało się jako „Rejestr chwilowo niedostępny" — zrzucając na
+    // rejestr coś, co jest naszą bramką i mija samo po kilku minutach.
     return {
       ok: false,
-      reason: "unavailable",
+      reason: "rate_limited",
       message: "Zbyt wiele prób wyszukiwania NIP w krótkim czasie. Spróbuj ponownie za chwilę.",
     };
   }

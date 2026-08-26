@@ -116,11 +116,16 @@ describe("lookupGus", () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it("brak klucza skonfigurowanego i brak trybu testowego → unavailable, bez próby sieciowej", async () => {
+  it("brak klucza skonfigurowanego i brak trybu testowego → unconfigured (NIE unavailable), bez próby sieciowej", async () => {
     delete process.env.GUS_BIR_ENV;
     const fetchFn = vi.fn();
     const result = await lookupGus("7740001454", { fetchFn });
     expect(result.ok).toBe(false);
+    // ADR-276: powód ROZRÓŻNIONY od awarii przejściowej. Brak klucza nie
+    // minie sam, więc komunikat „spróbuj ponownie" był radą bez pokrycia —
+    // i to właśnie on blokował podatników zwolnionych z VAT (MF ich nie zna,
+    // GUS bez klucza nie odpowie).
+    expect((result as { reason: string }).reason).toBe("unconfigured");
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
