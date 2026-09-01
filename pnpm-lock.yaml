@@ -28,8 +28,8 @@ importers:
         specifier: ^10.8.1
         version: 10.8.1(jiti@2.7.0)
       globals:
-        specifier: ^17.8.0
-        version: 17.8.0
+        specifier: ^17.11.0
+        version: 17.11.0
       turbo:
         specifier: ^2.3.0
         version: 2.10.5
@@ -3536,8 +3536,8 @@ packages:
     resolution: {integrity: sha512-ob/2LcVVaVGCYN+r14cnwnoDPUufjiYgSqRhiFD0Q1iI4Odora5RE8Iv1D24hAz5oMophRGkGz+yuvQmmUMnMw==}
     engines: {node: '>=18'}
 
-  globals@17.8.0:
-    resolution: {integrity: sha512-Zz/LMDZScFmkakeL2cTHzf+PbWKdpU3uclqkZT7TjDG58j5WPt0PpA+n9uPI24fZtlw07q0OtEi84K+umsRzqQ==}
+  globals@17.11.0:
+    resolution: {integrity: sha512-Z2I8hM+PbJDXQDq3Icgpzv+mPdwr68iZUU9d5WW4FuXfDUQfkZaZuvjMv42/5crNyw154+9+VWXbYrUgDXbxNw==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -8077,7 +8077,7 @@ snapshots:
 
   globals@16.4.0: {}
 
-  globals@17.8.0: {}
+  globals@17.11.0: {}
 
   globalthis@1.0.4:
     dependencies:
