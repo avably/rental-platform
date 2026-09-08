@@ -146,7 +146,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6.0.10
+      - uses: pnpm/action-setup@v6.1.0
       # Bez `cache: pnpm` (self-hosted): cache akcji to sieciowa wycieczka do
       # magazynu GitHuba, a magazyn pnpm (~/Library/pnpm/store) leży na dysku
       # runnera i przeżywa między przebiegami — instalacja idzie twardymi
@@ -280,7 +280,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6.0.10
+      - uses: pnpm/action-setup@v6.1.0
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: pnpm install --frozen-lockfile
@@ -361,7 +361,7 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6.0.10
+      - uses: pnpm/action-setup@v6.1.0
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: pnpm install --frozen-lockfile
